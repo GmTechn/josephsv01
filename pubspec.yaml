@@ -1,0 +1,56 @@
+name: josephs_vs_01
+description: "A new Flutter project."
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # UI
+  google_fonts: ^7.0.0
+
+  # Local storage
+  shared_preferences: ^2.5.4
+  sqflite: ^2.4.2
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  http: ^1.6.0
+
+  # Images
+  image_picker: ^1.0.7
+  image_cropper: ^7.0.5
+
+  # Dates
+  intl: ^0.20.2
+
+  # Notifications
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.0
+  url_launcher: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # App icon generator
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+# App launcher icons (Android + iOS)
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/applogo.png"

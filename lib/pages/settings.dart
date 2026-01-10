@@ -79,9 +79,12 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("About Josephs"),
+        title: const Text("About Joseph's", style: TextStyle(fontSize: 16)),
         content: const Text(
-          "Josephs helps you create, organize, and schedule tasks with smart reminders.\n",
+          "Josephs helps you create, organize, and schedule tasks with smart reminders.\n"
+          "Designed for simplicity and productivity, the app keeps you focused and organized throughout your day.\n"
+          "Developed by GMTECH, Josephs helps turn your plans into action."
+          "\n\n© 2025 GMTECH. All rights reserved.",
         ),
         actions: [
           TextButton(

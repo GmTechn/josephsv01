@@ -134,23 +134,24 @@ class _TasksPageState extends State<TasksPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Delete tasks?"),
+        title: const Text("Delete tasks?", style: TextStyle(fontSize: 16)),
         content: const Text(
           "Are you sure you want to delete the selected tasks?",
+          style: TextStyle(fontSize: 12),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text(
               "Cancel",
-              style: TextStyle(color: Color(0xff050c20)),
+              style: TextStyle(color: Color(0xff050c20), fontSize: 14),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
               "Delete",
-              style: TextStyle(color: Color(0xff050c20)),
+              style: TextStyle(fontSize: 14, color: Colors.red),
             ),
           ),
         ],

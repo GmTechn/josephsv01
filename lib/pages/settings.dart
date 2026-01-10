@@ -196,7 +196,34 @@ class _SettingsPageState extends State<SettingsPage> {
           ListTile(
             title: const Text('Delete Account'),
             subtitle: const Text('Remove all local data'),
+
             onTap: _user != null ? _confirmDelete : null,
+          ),
+
+          const Divider(height: 30),
+          // ---------------- ACCOUNT ----------------
+          const Text(
+            'THEMES',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xff050c20),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          ListTile(
+            title: const Text('Pick Theme'),
+            subtitle: const Text('Choose your preferred app theme'),
+            leading: const Icon(CupertinoIcons.paintbrush),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('This feature is coming soon!'),
+                  backgroundColor: Color(0xff050c20),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
           ),
 
           const Divider(height: 30),

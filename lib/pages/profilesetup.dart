@@ -243,22 +243,11 @@ class _SetUpProfileState extends State<SetUpProfile> {
             Mytextformfield(
               controller: fnameController,
               hintText: "First Name",
-              leadingIcon: const Icon(
-                CupertinoIcons.person_fill,
-                color: Color(0xff050c20),
-              ),
             ),
 
             const SizedBox(height: 20),
 
-            Mytextformfield(
-              controller: lnameController,
-              hintText: "Last Name",
-              leadingIcon: const Icon(
-                CupertinoIcons.person_fill,
-                color: Color(0xff050c20),
-              ),
-            ),
+            Mytextformfield(controller: lnameController, hintText: "Last Name"),
 
             const SizedBox(height: 30),
 

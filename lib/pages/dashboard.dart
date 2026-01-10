@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:josephs_vs_01/components/mytextformfield.dart';
 import 'package:josephs_vs_01/pages/settings.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -255,21 +256,10 @@ class _DashboardState extends State<Dashboard> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: fnameCtrl,
-              decoration: const InputDecoration(
-                hintText: "First Name",
-                prefixIcon: Icon(CupertinoIcons.person_fill),
-              ),
-            ),
+            Mytextformfield(controller: fnameCtrl, hintText: "First Name"),
+
             const SizedBox(height: 10),
-            TextField(
-              controller: lnameCtrl,
-              decoration: const InputDecoration(
-                hintText: "Last Name",
-                prefixIcon: Icon(CupertinoIcons.person_fill),
-              ),
-            ),
+            Mytextformfield(controller: lnameCtrl, hintText: "Last Name"),
           ],
         ),
         actionsAlignment: MainAxisAlignment.center,

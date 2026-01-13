@@ -6,7 +6,7 @@
 	<integer>11</integer>
 	<key>logs</key>
 	<dict>
-		<key>588F7BAB-745A-46C6-88FE-799B0F26E579</key>
+		<key>E96D2650-814C-4431-B5AC-49ECA6051554</key>
 		<dict>
 			<key>className</key>
 			<string>IDECommandLineBuildLog</string>
@@ -15,7 +15,7 @@
 			<key>domainType</key>
 			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
 			<key>fileName</key>
-			<string>588F7BAB-745A-46C6-88FE-799B0F26E579.xcactivitylog</string>
+			<string>E96D2650-814C-4431-B5AC-49ECA6051554.xcactivitylog</string>
 			<key>hasPrimaryLog</key>
 			<true/>
 			<key>primaryObservable</key>
@@ -40,55 +40,13 @@
 			<key>signature</key>
 			<string>Cleaning workspace Runner with scheme Runner</string>
 			<key>timeStartedRecording</key>
-			<real>789692804.01823294</real>
+			<real>789958320.64830697</real>
 			<key>timeStoppedRecording</key>
-			<real>789692804.18787801</real>
+			<real>789958320.89792097</real>
 			<key>title</key>
 			<string>Cleaning workspace Runner with scheme Runner</string>
 			<key>uniqueIdentifier</key>
-			<string>588F7BAB-745A-46C6-88FE-799B0F26E579</string>
-		</dict>
-		<key>8FB11585-2A9B-467C-BFB6-D121193BC31B</key>
-		<dict>
-			<key>className</key>
-			<string>IDECommandLineBuildLog</string>
-			<key>documentTypeString</key>
-			<string>&lt;nil&gt;</string>
-			<key>domainType</key>
-			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
-			<key>fileName</key>
-			<string>8FB11585-2A9B-467C-BFB6-D121193BC31B.xcactivitylog</string>
-			<key>hasPrimaryLog</key>
-			<true/>
-			<key>primaryObservable</key>
-			<dict>
-				<key>highLevelStatus</key>
-				<string>S</string>
-				<key>totalNumberOfAnalyzerIssues</key>
-				<integer>0</integer>
-				<key>totalNumberOfErrors</key>
-				<integer>0</integer>
-				<key>totalNumberOfTestFailures</key>
-				<integer>0</integer>
-				<key>totalNumberOfWarnings</key>
-				<integer>0</integer>
-			</dict>
-			<key>schemeIdentifier-containerName</key>
-			<string>Runner project</string>
-			<key>schemeIdentifier-schemeName</key>
-			<string>Flutter Assemble</string>
-			<key>schemeIdentifier-sharedScheme</key>
-			<integer>1</integer>
-			<key>signature</key>
-			<string>Cleaning workspace Runner with scheme Flutter Assemble</string>
-			<key>timeStartedRecording</key>
-			<real>789692803.40290201</real>
-			<key>timeStoppedRecording</key>
-			<real>789692803.56778097</real>
-			<key>title</key>
-			<string>Cleaning workspace Runner with scheme Flutter Assemble</string>
-			<key>uniqueIdentifier</key>
-			<string>8FB11585-2A9B-467C-BFB6-D121193BC31B</string>
+			<string>E96D2650-814C-4431-B5AC-49ECA6051554</string>
 		</dict>
 	</dict>
 </dict>

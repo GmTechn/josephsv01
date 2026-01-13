@@ -26,6 +26,7 @@ dependencies:
   # Images
   image_picker: ^1.0.7
   image_cropper: ^7.0.5
+  file_picker: ^8.0.0
 
   # Dates
   intl: ^0.20.2
@@ -45,6 +46,23 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter/static/Inter_24pt-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter/static/Inter_24pt-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter/static/Inter_24pt-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter/static/Inter_24pt-Bold.ttf
+          weight: 700
+
+    - family: Abel
+      fonts:
+        - asset: assets/fonts/Abel/Abel-Regular.ttf
+          weight: 400
 
   assets:
     - assets/images/

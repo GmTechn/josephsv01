@@ -34,7 +34,23 @@ class NotificationServices {
       requestSoundPermission: true,
     );
 
-    const settings = InitializationSettings(android: androidInit, iOS: iosInit);
+    // =========================
+    // ✅ CHANGE #1: ADD macOS init settings
+    // =========================
+    const macosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    // =========================
+    // ✅ CHANGE #2: Include macOS in InitializationSettings
+    // =========================
+    const settings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+      macOS: macosInit, // ✅ ADD THIS
+    );
 
     await flutterLocalNotificationsPlugin.initialize(
       settings,
@@ -52,6 +68,17 @@ class NotificationServices {
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
+        >()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+  }
+
+  // =========================
+  // ✅ OPTIONAL: request macOS permissions too
+  // =========================
+  Future<void> requestMacOSPermissions() async {
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          MacOSFlutterLocalNotificationsPlugin
         >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
   }
@@ -75,6 +102,7 @@ class NotificationServices {
         presentBadge: true,
         presentSound: true,
       ),
+      // (No extra macOS details required here; DarwinNotificationDetails covers it)
     );
 
     await flutterLocalNotificationsPlugin.show(

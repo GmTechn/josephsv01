@@ -3,9 +3,11 @@
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:josephs_vs_01/components/mytextformfield.dart';
@@ -166,11 +168,68 @@ class _DashboardState extends State<Dashboard> {
     return saved.path;
   }
 
+  // ✅ NEW: macOS direct file picker (gallery only)
+  Future<File?> _pickFromMacGalleryOnly() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+    if (result == null || result.files.isEmpty) return null;
+
+    final path = result.files.single.path;
+    if (path == null) return null;
+    return File(path);
+  }
+
+  // ✅ UPDATED: platform safe pick/crop/save
   Future<void> _pickCropAndSavePp(ImageSource source) async {
     if (_picking) return;
     setState(() => _picking = true);
 
     try {
+      // macOS: no camera + no cropper
+      if (!kIsWeb && Platform.isMacOS) {
+        // We do NOT allow camera on macOS
+        if (source == ImageSource.camera) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Camera is not available on macOS. Please use Gallery.",
+              ),
+              backgroundColor: Color(0xff050c20),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
+        final file = await _pickFromMacGalleryOnly();
+        if (file == null) return;
+
+        final newPath = await _persistImageToAppDir(file);
+
+        final oldPath = _currentUser?.photoPath ?? '';
+        if (oldPath.isNotEmpty) {
+          final f = File(oldPath);
+          if (await f.exists()) await f.delete();
+        }
+
+        await _db.updateLocalUser(photoPath: newPath);
+        await _loadUser();
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Profile picture updated ✅"),
+            backgroundColor: Color(0xff050c20),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // iOS/Android: picker + crop
       final picked = await _picker.pickImage(source: source, imageQuality: 90);
       if (picked == null) return;
 
@@ -214,7 +273,15 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
+  // ✅ UPDATED: EXACT behavior you asked for
   void _showPpSourceSheet() {
+    // macOS -> open picker directly (NO bottom sheet)
+    if (!kIsWeb && Platform.isMacOS) {
+      _pickCropAndSavePp(ImageSource.gallery);
+      return;
+    }
+
+    // mobile -> show sheet camera/gallery
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -257,7 +324,6 @@ class _DashboardState extends State<Dashboard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Mytextformfield(controller: fnameCtrl, hintText: "First Name"),
-
             const SizedBox(height: 10),
             Mytextformfield(controller: lnameCtrl, hintText: "Last Name"),
           ],
@@ -325,7 +391,7 @@ class _DashboardState extends State<Dashboard> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _showPpSourceSheet();
+              _showPpSourceSheet(); // ✅ this now matches the rule
             },
             child: const Text(
               "Modify",
@@ -508,7 +574,7 @@ class _DashboardState extends State<Dashboard> {
                   color: Color(0xff050c20),
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
             ],
           ),
         ],

@@ -25,9 +25,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
 
   static const _privacyUrl =
-      'https://sites.google.com/view/josephsprivacypolicy/privacy-policy';
-  static const _termsUrl =
-      'https://sites.google.com/view/josephsprivacypolicy/terms-of-use';
+      'https://www.gabriellemtech.com/joseph-s#termsofuse';
+  static const _termsUrl = 'https://www.gabriellemtech.com/joseph-s#termsofuse';
 
   @override
   void initState() {

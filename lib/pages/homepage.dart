@@ -1,34 +1,59 @@
-// ignore_for_file: use_key_in_widget_constructors, use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, use_key_in_widget_constructors
 
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:josephs_vs_01/components/mybutton.dart';
 import 'package:josephs_vs_01/pages/dashboard.dart';
 import 'package:josephs_vs_01/pages/onboarding.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage();
 
-  Future<void> _goNext(BuildContext context) async {
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
+    // ✅ keep splash
+    await Future.delayed(const Duration(seconds: 3));
+
     final prefs = await SharedPreferences.getInstance();
 
-    // If user has seen onboarding before, skip it
+    // ===========================
+    // 🔥 CHANGE #1 (optional debug)
+    // Add prints to see what's happening
+    // ===========================
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+    final hasAccount = prefs.getBool('hasAccount') ?? false;
 
-    if (hasSeenOnboarding) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const Dashboard()),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingPage()),
-      );
-    }
+    debugPrint("hasSeenOnboarding = $hasSeenOnboarding");
+    debugPrint("hasAccount = $hasAccount");
+
+    // ===========================
+    // 🔥 CHANGE #2 (clean routing)
+    // Build the destination first, then navigate once
+    // ===========================
+    if (!mounted) return;
+
+    final Widget next =
+        (hasSeenOnboarding && hasAccount) // ✅ same rule, but cleaner
+        ? const Dashboard()
+        : const OnboardingPage();
+
+    // ===========================
+    // 🔥 CHANGE #3 (safer navigation)
+    // Use pushReplacement only once (no duplicated blocks)
+    // ===========================
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => next));
   }
 
   @override
@@ -45,25 +70,29 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              'J O S E P H \'S',
-              style: GoogleFonts.abel(
+              "J O S E P H ' S",
+
+              style: TextStyle(
+                fontFamily: 'Abel',
                 fontWeight: FontWeight.bold,
                 fontSize: 38,
                 color: const Color(0xff050c20),
               ),
+
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             Text(
               'Welcome to your personal task manager!',
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.bold,
                 color: Colors.grey.shade700,
                 fontSize: 14,
               ),
+
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 50),
-            MyButton(onPressed: () => _goNext(context), text: "Next"),
           ],
         ),
       ),

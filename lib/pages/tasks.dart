@@ -137,9 +137,13 @@ class _TasksPageState extends State<TasksPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Delete tasks?"),
+        title: const Text(
+          "Delete tasks?",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         content: const Text(
           "Are you sure you want to delete the selected tasks?",
+          style: TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
@@ -212,7 +216,7 @@ class _TasksPageState extends State<TasksPage> {
                           onLongPress: () => _toggleSelectionMode(true),
                           onTap: _selectionMode
                               ? () => _toggleTaskSelection(task.id!)
-                              : () => _showCreateOrEditTaskDialog(task: task),
+                              : () => _showTaskOptions(task),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             margin: const EdgeInsets.symmetric(vertical: 8),
@@ -285,16 +289,67 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  void _showCreateOrEditTaskDialog({Task? task}) {
-    final parentScheme = Theme.of(context).colorScheme;
+  // ----------------------------
+  // BOTTOM SHEET OPTIONS (tap on card)
+  // ----------------------------
+  void _showTaskOptions(Task task) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(
+                  CupertinoIcons.check_mark_circled_solid,
+                  color: Color(0xff050c20),
+                ),
+                title: const Text("Mark as Done"),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _db.updateTask(
+                    id: task.id!,
+                    status: "Done",
+                    title: task.title,
+                    subtitle: task.subtitle,
+                    date: task.date,
+                    startTime: task.startTime,
+                    endTime: task.endTime,
+                  );
+                  await _loadTasks();
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  CupertinoIcons.pencil,
+                  color: Color(0xff050c20),
+                ),
+                title: const Text("Edit Task"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showCreateOrEditTaskDialog(task: task);
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-    final bool isOriginal =
-        parentScheme.primary == const Color(0xff050c20) &&
-        Theme.of(context).brightness == Brightness.light;
+  void _showCreateOrEditTaskDialog({Task? task}) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
 
     final Color primaryColor = isOriginal
         ? const Color(0xff050c20)
-        : parentScheme.primary;
+        : scheme.primary;
 
     final titleController = TextEditingController(text: task?.title ?? "");
     final subtitleController = TextEditingController(
@@ -316,198 +371,172 @@ class _TasksPageState extends State<TasksPage> {
 
     showDialog(
       context: context,
-      builder: (dialogContext) {
-        return Theme(
-          data: Theme.of(dialogContext).copyWith(
-            colorScheme: Theme.of(dialogContext).colorScheme.copyWith(
-              primary: primaryColor,
-              secondary: primaryColor,
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: primaryColor),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: primaryColor.withOpacity(.5)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+      builder: (_) {
+        return AlertDialog(
+          backgroundColor: scheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: StatefulBuilder(
-            builder: (context, setStateDialog) {
-              final scheme = Theme.of(context).colorScheme;
-
-              return AlertDialog(
-                backgroundColor: scheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: Text(isEdit ? "Edit Task" : "Create Task"),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: status,
-                        items: statusOptions
-                            .map(
-                              (s) => DropdownMenuItem(value: s, child: Text(s)),
-                            )
-                            .toList(),
-                        onChanged: (val) =>
-                            setStateDialog(() => status = val ?? status),
-                        decoration: const InputDecoration(labelText: "Status"),
+          title: Text(
+            isEdit ? "Edit Task" : "Create Task",
+            style: TextStyle(color: scheme.onSurface),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // STATUS
+                DropdownButtonFormField<String>(
+                  value: status,
+                  dropdownColor: scheme.surface,
+                  style: TextStyle(color: scheme.onSurface),
+                  items: statusOptions
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (val) => setState(() => status = val ?? status),
+                  decoration: InputDecoration(
+                    labelText: "Status",
+                    labelStyle: TextStyle(color: scheme.onSurface),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: primaryColor.withOpacity(.5),
                       ),
-
-                      const SizedBox(height: 10),
-
-                      TextField(
-                        controller: titleController,
-                        decoration: const InputDecoration(hintText: "Title"),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      TextField(
-                        controller: subtitleController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(hintText: "Subtitle"),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              selectedDate == null
-                                  ? "No date chosen"
-                                  : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
-                              style: TextStyle(color: scheme.onSurface),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              final pickedDate = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate ?? DateTime.now(),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2100),
-                              );
-
-                              if (pickedDate != null) {
-                                setStateDialog(() => selectedDate = pickedDate);
-                              }
-                            },
-                            child: Text(
-                              "Select Date",
-                              style: TextStyle(color: primaryColor),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: primaryColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-                actions: [
-                  if (isEdit)
+
+                const SizedBox(height: 12),
+
+                // TITLE
+                TextField(
+                  controller: titleController,
+                  style: TextStyle(color: scheme.onSurface),
+                  decoration: InputDecoration(
+                    hintText: "Title",
+                    hintStyle: TextStyle(
+                      color: scheme.onSurface.withOpacity(.5),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: primaryColor.withOpacity(.5),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: primaryColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // SUBTITLE
+                TextField(
+                  controller: subtitleController,
+                  maxLines: 3,
+                  style: TextStyle(color: scheme.onSurface),
+                  decoration: InputDecoration(
+                    hintText: "Subtitle (optional)",
+                    hintStyle: TextStyle(
+                      color: scheme.onSurface.withOpacity(.5),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: primaryColor.withOpacity(.5),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: primaryColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // DATE
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        selectedDate == null
+                            ? "No date chosen"
+                            : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+                        style: TextStyle(color: scheme.onSurface),
+                      ),
+                    ),
                     TextButton(
                       onPressed: () async {
-                        final confirm = await showDialog<bool>(
+                        final pickedDate = await showDatePicker(
                           context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text("Delete task?"),
-                            content: const Text(
-                              "Are you sure you want to delete this task?",
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: Text(
-                                  "Cancel",
-                                  style: TextStyle(color: primaryColor),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text(
-                                  "Delete",
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ),
+                          initialDate: selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
                         );
 
-                        if (confirm == true) {
-                          await _db.deleteTask(task.id!);
-                          if (mounted) Navigator.pop(context);
-                          await _loadTasks();
+                        if (pickedDate != null) {
+                          setState(() => selectedDate = pickedDate);
                         }
                       },
-                      child: const Text(
-                        "Delete",
-                        style: TextStyle(color: Colors.red),
+                      child: Text(
+                        "Select Date",
+                        style: TextStyle(color: primaryColor),
                       ),
                     ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      "Cancel",
-                      style: TextStyle(color: primaryColor),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final title = titleController.text.trim();
-                      final sub = subtitleController.text.trim();
-
-                      if (title.isEmpty ||
-                          sub.isEmpty ||
-                          selectedDate == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              "Please fill all fields and pick a date.",
-                            ),
-                            backgroundColor: primaryColor,
-                          ),
-                        );
-                        return;
-                      }
-
-                      if (!isEdit) {
-                        await _db.createTask(
-                          title: title,
-                          subtitle: sub,
-                          date: selectedDate!,
-                          status: status,
-                        );
-                      } else {
-                        await _db.updateTask(
-                          id: task.id!,
-                          status: status,
-                          title: title,
-                          subtitle: sub,
-                          date: selectedDate!,
-                          startTime: task.startTime,
-                          endTime: task.endTime,
-                        );
-                      }
-
-                      Navigator.pop(context);
-                      await _loadTasks();
-                    },
-                    child: Text(
-                      isEdit ? "Save" : "Add",
-                      style: TextStyle(color: primaryColor),
-                    ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                ),
+              ],
+            ),
           ),
+
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel", style: TextStyle(color: scheme.onSurface)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final title = titleController.text.trim();
+
+                if (title.isEmpty || selectedDate == null) {
+                  return;
+                }
+
+                if (!isEdit) {
+                  await _db.createTask(
+                    title: title,
+                    subtitle: subtitleController.text.trim(),
+                    date: selectedDate!,
+                    status: status,
+                  );
+                } else {
+                  await _db.updateTask(
+                    id: task.id!,
+                    status: status,
+                    title: title,
+                    subtitle: subtitleController.text.trim(),
+                    date: selectedDate!,
+                    startTime: task.startTime,
+                    endTime: task.endTime,
+                  );
+                }
+
+                Navigator.pop(context);
+                await _loadTasks();
+              },
+              child: Text(
+                isEdit ? "Save" : "Add",
+                style: TextStyle(color: primaryColor),
+              ),
+            ),
+          ],
         );
       },
     );

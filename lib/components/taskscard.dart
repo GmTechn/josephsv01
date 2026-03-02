@@ -23,15 +23,24 @@ class MyTaskCard extends StatelessWidget {
 
     switch (status) {
       case "Done":
-        return isDark ? Colors.green.shade300 : Colors.green;
+        return isDark
+            ? const Color(0xFF81C784)
+            : const Color.fromARGB(255, 55, 165, 60);
+
       case "In progress":
-        return isDark ? Colors.orange.shade300 : Colors.orange;
+        return isDark
+            ? const Color(0xFFFFB74D)
+            : const Color.fromARGB(255, 249, 135, 22);
+
       case "To do":
-        return difference <= 2
-            ? (isDark ? Colors.red.shade300 : Colors.red)
-            : (isDark ? Colors.deepPurple.shade300 : Colors.deepPurple);
+        return isDark
+            ? const Color(0xFFE57373)
+            : (difference <= 2
+                  ? const Color(0xFFD32F2F)
+                  : const Color(0xFF512DA8));
+
       default:
-        return isDark ? Colors.deepPurple.shade300 : Colors.deepPurple;
+        return isDark ? const Color(0xFFB39DDB) : const Color(0xFF512DA8);
     }
   }
 
@@ -50,25 +59,32 @@ class MyTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     final statusColor = _getStatusColor(isDark);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: scheme.surfaceContainer, // ✅ adaptatif
+      elevation: isDark ? 4 : 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isDark
+            ? BorderSide(color: Colors.white.withOpacity(.05), width: 1)
+            : BorderSide.none,
+      ),
+
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // STATUS
+            // STATUS BADGE
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(isDark ? 0.25 : 0.1),
+                color: statusColor.withOpacity(isDark ? 0.20 : 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -76,6 +92,7 @@ class MyTaskCard extends StatelessWidget {
                 style: TextStyle(
                   color: statusColor,
                   fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
             ),
@@ -88,16 +105,18 @@ class MyTaskCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: scheme.onSurface, // ✅ plus de navy fixe
+                color: scheme.onSurface,
               ),
             ),
+
+            const SizedBox(height: 4),
 
             // SUBJECT
             Text(
               subject,
               style: TextStyle(
                 fontSize: 14,
-                color: scheme.onSurface.withOpacity(0.7),
+                color: scheme.onSurface.withOpacity(.7),
               ),
             ),
 
@@ -109,25 +128,27 @@ class MyTaskCard extends StatelessWidget {
                 Icon(
                   CupertinoIcons.calendar,
                   size: 16,
-                  color: scheme.onSurface.withOpacity(0.6),
+                  color: scheme.onSurface.withOpacity(.6),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   '${date.day}/${date.month}/${date.year}',
-                  style: TextStyle(color: scheme.onSurface.withOpacity(0.6)),
+                  style: TextStyle(color: scheme.onSurface.withOpacity(.6)),
                 ),
               ],
             ),
 
             const SizedBox(height: 10),
 
-            // PROGRESS
-            LinearProgressIndicator(
-              value: _getProgressValue(),
-              backgroundColor: scheme.surfaceContainerHighest,
-              color: statusColor,
-              minHeight: 6,
+            // PROGRESS BAR
+            ClipRRect(
               borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: _getProgressValue(),
+                backgroundColor: scheme.surfaceContainerHighest,
+                color: statusColor,
+                minHeight: 6,
+              ),
             ),
           ],
         ),

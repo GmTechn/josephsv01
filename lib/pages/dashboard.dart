@@ -494,9 +494,7 @@ class _DashboardState extends State<Dashboard> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final bool isOriginal =
-        theme.brightness == Brightness.light &&
-        scheme.primary == const Color(0xFF050C20);
+    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
 
     final fullName =
         ((_currentUser?.fname ?? '').trim().isEmpty &&
@@ -511,9 +509,7 @@ class _DashboardState extends State<Dashboard> {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         color: isOriginal
-            ? Colors
-                  .grey
-                  .shade100 // 🔥 your real original color
+            ? const Color(0xFFF5F5F5) // 🔥 this WILL now apply
             : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(18),
       ),
@@ -621,9 +617,7 @@ class _DashboardState extends State<Dashboard> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final bool isOriginal =
-        theme.brightness == Brightness.light &&
-        scheme.primary == const Color(0xFF050C20);
+    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
 
     return Container(
       width: double.infinity,
@@ -631,21 +625,15 @@ class _DashboardState extends State<Dashboard> {
       decoration: BoxDecoration(
         color: isOriginal ? Colors.white : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: isOriginal
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.15),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        boxShadow: [
+          BoxShadow(
+            color: isOriginal
+                ? Colors.black.withOpacity(.05)
+                : scheme.shadow.withOpacity(.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,23 +661,28 @@ class _DashboardState extends State<Dashboard> {
   // BUILD TASK LIST
   // ----------------------------
   Widget _buildTaskList() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     if (todayTasks.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: const Text(
+        child: Text(
           "No tasks for today",
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: scheme.onSurface.withOpacity(.6)),
         ),
       );
     }
 
     return Column(
       children: todayTasks.map((item) {
+        final baseColor = item.color;
+
         return GestureDetector(
           onTap: _openSchedulePage,
           child: Container(
@@ -697,9 +690,15 @@ class _DashboardState extends State<Dashboard> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.1),
+              color: baseColor.withOpacity(
+                theme.brightness == Brightness.dark ? 0.15 : 0.1,
+              ),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: item.color.withOpacity(0.4)),
+              border: Border.all(
+                color: baseColor.withOpacity(
+                  theme.brightness == Brightness.dark ? 0.6 : 0.4,
+                ),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -707,7 +706,7 @@ class _DashboardState extends State<Dashboard> {
                 Text(
                   _statusLabel(item),
                   style: TextStyle(
-                    color: item.color,
+                    color: baseColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -715,7 +714,9 @@ class _DashboardState extends State<Dashboard> {
                 Text(
                   item.task.subtitle,
                   style: TextStyle(
-                    color: item.color.withOpacity(0.7),
+                    color: baseColor.withOpacity(
+                      theme.brightness == Brightness.dark ? 0.85 : 0.7,
+                    ),
                     fontSize: 14,
                   ),
                 ),

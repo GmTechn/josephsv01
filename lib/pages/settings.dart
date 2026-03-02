@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:josephs_vs_01/main.dart';
@@ -106,7 +106,10 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (_) => AlertDialog(
         backgroundColor: scheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Delete Account", style: TextStyle(fontSize: 16)),
+        title: const Text(
+          "⚠️Delete Account",
+          style: TextStyle(fontSize: 16, color: Colors.red),
+        ),
         content: const Text(
           "Are you sure you want to delete your account? "
           "This action cannot be undone.",
@@ -115,7 +118,10 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Color(0xff050c20)),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -134,7 +140,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
             child: const Text(
               "Delete",
-              style: TextStyle(color: Colors.red, fontSize: 16),
+              style: TextStyle(color: Colors.red, fontSize: 14),
             ),
           ),
         ],
@@ -159,7 +165,7 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
+            child: const Text("OK", style: TextStyle(color: Color(0xff050c20))),
           ),
         ],
       ),
@@ -196,8 +202,16 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: "Task reminders & alerts",
             trailing: Switch(
               value: _notificationsEnabled,
-              activeThumbColor: scheme.primary,
               onChanged: _toggleNotifications,
+              activeThumbColor:
+                  Theme.of(context).extension<AppThemeKey>()?.key == "original"
+                  ? const Color(0xff050c20)
+                  : scheme.primary,
+              activeTrackColor:
+                  (Theme.of(context).extension<AppThemeKey>()?.key == "original"
+                          ? const Color(0xff050c20)
+                          : scheme.primary)
+                      .withOpacity(.3),
             ),
           ),
 

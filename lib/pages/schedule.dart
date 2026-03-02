@@ -342,7 +342,7 @@ class _SchedulePageState extends State<SchedulePage> {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.calendar_month, color: scheme.onSurface),
+            icon: Icon(CupertinoIcons.calendar, color: scheme.onSurface),
             onPressed: () {
               setState(() => _showMonthPicker = !_showMonthPicker);
             },

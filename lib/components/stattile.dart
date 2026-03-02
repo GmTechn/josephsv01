@@ -25,7 +25,9 @@ class StatTile extends StatelessWidget {
       height: 82,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerHigh : scheme.surface,
+        color: isDark
+            ? scheme.surfaceContainerHigh
+            : Colors.white, // toujours blanc en light mode
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -41,7 +43,7 @@ class StatTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: isDark
                   ? scheme.surfaceContainer
-                  : scheme.surfaceContainerHighest,
+                  : Colors.black.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.all(10),

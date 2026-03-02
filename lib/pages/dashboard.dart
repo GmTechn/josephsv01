@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:intl/intl.dart';
+import 'package:josephs_vs_01/main.dart';
 import 'package:josephs_vs_01/models/tasks.dart';
+import 'package:josephs_vs_01/pages/schedule.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:josephs_vs_01/components/mynavbar.dart';
@@ -51,6 +53,16 @@ class _DashboardState extends State<Dashboard> {
     final u = await _db.getLocalUser();
     if (!mounted) return;
     setState(() => _currentUser = u);
+  }
+
+  // ----------------------------
+  // NAV
+  // ----------------------------
+  void _openSchedulePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SchedulePage()),
+    ).then((_) => _loadDashboardTasks());
   }
 
   Future<void> _loadDashboardTasks() async {
@@ -179,6 +191,26 @@ class _DashboardState extends State<Dashboard> {
     }
 
     return (status: 'todo', color: Colors.grey);
+  }
+
+  String _statusLabel(_DashTaskItem item) {
+    final time = (item.task.startTime ?? '').trim().isNotEmpty
+        ? item.task.startTime!
+        : "--:--";
+
+    switch (item.status) {
+      case "overdue":
+        return "${item.task.title} is overdue!\nEnded at ${item.task.endTime ?? '--:--'}";
+      case "in_progress":
+        return "It's time for: ${item.task.title} ($time)";
+      case "next":
+        return "Next: ${item.task.title} at $time";
+      case "no_time":
+        return "${item.task.title} (No time set yet)";
+
+      default:
+        return "${item.task.title} (No time set)";
+    }
   }
 
   // ================= GREETING =================
@@ -552,9 +584,8 @@ class _DashboardState extends State<Dashboard> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final bool isOriginal =
-        theme.brightness == Brightness.light &&
-        scheme.primary == const Color(0xFF050C20);
+    final isOriginal =
+        Theme.of(context).extension<AppThemeKey>()?.key == "original";
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -638,51 +669,58 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  // ----------------------------
+  // BUILD TASK LIST
+  // ----------------------------
   Widget _buildTaskList() {
     if (todayTasks.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(
+        child: const Text(
           "No tasks for today",
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: TextStyle(color: Colors.grey),
         ),
       );
     }
 
     return Column(
       children: todayTasks.map((item) {
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: item.color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: item.color.withOpacity(0.4)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.task.title,
-                style: TextStyle(
-                  color: item.color,
-                  fontWeight: FontWeight.bold,
+        return GestureDetector(
+          onTap: _openSchedulePage,
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: item.color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: item.color.withOpacity(0.4)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _statusLabel(item),
+                  style: TextStyle(
+                    color: item.color,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                item.task.subtitle,
-                style: TextStyle(color: item.color.withOpacity(0.7)),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  item.task.subtitle,
+                  style: TextStyle(
+                    color: item.color.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }).toList(),

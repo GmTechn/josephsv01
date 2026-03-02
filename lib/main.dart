@@ -91,33 +91,29 @@ class MyAppState extends State<MyApp> {
   }
 
   // ================= LIGHT =================
+  // ================= LIGHT =================
   ThemeData _buildLightTheme() {
     final seed = _seedFromKey(_currentTheme);
 
+    // ===== ORIGINAL THEME =====
     if (_currentTheme == "original") {
       return ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF050C20),
-          onPrimary: Colors.white,
-          surface: Colors.white,
-          onSurface: Color(0xFF050C20),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF050C20),
-          elevation: 0,
-        ),
+
+        // ✅ ONLY what you said you set:
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
           selectedItemColor: Color(0xFF050C20),
           unselectedItemColor: Colors.black54,
           type: BottomNavigationBarType.fixed,
         ),
+
+        extensions: const [AppThemeKey("original")],
       );
     }
 
+    // ===== ALL OTHER LIGHT THEMES =====
     final scheme = ColorScheme.fromSeed(
       seedColor: seed!,
       brightness: Brightness.light,
@@ -138,16 +134,23 @@ class MyAppState extends State<MyApp> {
         unselectedItemColor: scheme.onSurface.withOpacity(0.6),
         type: BottomNavigationBarType.fixed,
       ),
+      extensions: [AppThemeKey(_currentTheme)],
     );
   }
 
   // ================= DARK =================
+  // ================= DARK =================
   ThemeData _buildDarkTheme() {
-    if (_currentTheme == "original") {
-      return ThemeData(useMaterial3: true, brightness: Brightness.dark);
-    }
-
     final seed = _seedFromKey(_currentTheme) ?? const Color(0xFF050C20);
+
+    // ===== ORIGINAL DARK =====
+    if (_currentTheme == "original") {
+      return ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        extensions: const [AppThemeKey("original")],
+      );
+    }
 
     final scheme = ColorScheme.fromSeed(
       seedColor: seed,
@@ -169,6 +172,7 @@ class MyAppState extends State<MyApp> {
         unselectedItemColor: scheme.onSurface.withOpacity(0.55),
         type: BottomNavigationBarType.fixed,
       ),
+      extensions: [AppThemeKey(_currentTheme)],
     );
   }
 

@@ -17,25 +17,23 @@ class MyTaskCard extends StatelessWidget {
   final String subject;
   final DateTime date;
 
-  //Display the color of the task based on its status
-
-  Color _getStatusColor() {
+  Color _getStatusColor(bool isDark) {
     final now = DateTime.now();
     final difference = date.difference(now).inDays;
 
     switch (status) {
       case "Done":
-        return Colors.green;
+        return isDark ? Colors.green.shade300 : Colors.green;
       case "In progress":
-        return Colors.orange;
+        return isDark ? Colors.orange.shade300 : Colors.orange;
       case "To do":
-        return difference <= 2 ? Colors.red : Colors.deepPurple;
+        return difference <= 2
+            ? (isDark ? Colors.red.shade300 : Colors.red)
+            : (isDark ? Colors.deepPurple.shade300 : Colors.deepPurple);
       default:
-        return Colors.deepPurple;
+        return isDark ? Colors.deepPurple.shade300 : Colors.deepPurple;
     }
   }
-
-  //Displaying the level/progress of the task based on its status
 
   double _getProgressValue() {
     switch (status) {
@@ -52,70 +50,82 @@ class MyTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final statusColor = _getStatusColor(isDark);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: scheme.surfaceContainer, // ✅ adaptatif
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //
+            // STATUS
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _getStatusColor().withOpacity(0.1),
+                color: statusColor.withOpacity(isDark ? 0.25 : 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 status,
                 style: TextStyle(
-                  color: _getStatusColor(),
+                  color: statusColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+
             const SizedBox(height: 10),
 
-            //Title of the Task
+            // TITLE
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xff050c20),
+                color: scheme.onSurface, // ✅ plus de navy fixe
               ),
             ),
 
-            //Subject of the task
+            // SUBJECT
             Text(
               subject,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 14,
+                color: scheme.onSurface.withOpacity(0.7),
+              ),
             ),
+
             const SizedBox(height: 10),
 
-            //Displaying the Date and the progress indicator
+            // DATE
             Row(
               children: [
                 Icon(
                   CupertinoIcons.calendar,
                   size: 16,
-                  color: Colors.grey.shade600,
+                  color: scheme.onSurface.withOpacity(0.6),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   '${date.day}/${date.month}/${date.year}',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: scheme.onSurface.withOpacity(0.6)),
                 ),
               ],
             ),
+
             const SizedBox(height: 10),
 
-            //Progress bar on the bottom
+            // PROGRESS
             LinearProgressIndicator(
               value: _getProgressValue(),
-              backgroundColor: Colors.grey.shade200,
-              color: _getStatusColor(),
+              backgroundColor: scheme.surfaceContainerHighest,
+              color: statusColor,
               minHeight: 6,
               borderRadius: BorderRadius.circular(10),
             ),

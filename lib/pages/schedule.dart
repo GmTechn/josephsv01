@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, use_build_context_synchronously, depend_on_referenced_packages
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -20,8 +20,11 @@ class SchedulePage extends StatefulWidget {
 class _SchedulePageState extends State<SchedulePage> {
   final DatabaseManager _db = DatabaseManager();
 
+  bool _showMonthPicker = false;
+  DateTime _anchorDate = DateTime.now();
+
   int selectedDayIndex = 0;
-  late final List<_DayItem> _days;
+  late List<_DayItem> _days;
 
   List<Task> _tasksForDay = [];
   bool _loading = false;
@@ -29,48 +32,57 @@ class _SchedulePageState extends State<SchedulePage> {
   @override
   void initState() {
     super.initState();
-    _days = _generateDays();
+    _days = _generateDaysFrom(_anchorDate);
     _loadTasksForSelectedDay();
   }
 
-  List<_DayItem> _generateDays() {
-    final today = DateTime.now();
+  // =========================
+  // DAYS GENERATION
+  // =========================
+
+  List<_DayItem> _generateDaysFrom(DateTime anchor) {
+    final base = DateTime(anchor.year, anchor.month, anchor.day);
+
     return List.generate(4, (i) {
-      final date = today.add(Duration(days: i));
-      return _DayItem(
-        _weekdayLabel(date.weekday),
-        DateTime(date.year, date.month, date.day),
-      );
+      final date = base.add(Duration(days: i));
+      return _DayItem(DateFormat('EEE').format(date), date);
     });
   }
 
   DateTime get _selectedDate => _days[selectedDayIndex].date;
 
-  String _weekdayLabel(int weekday) {
-    switch (weekday) {
-      case DateTime.monday:
-        return 'Mon';
-      case DateTime.tuesday:
-        return 'Tue';
-      case DateTime.wednesday:
-        return 'Wed';
-      case DateTime.thursday:
-        return 'Thu';
-      case DateTime.friday:
-        return 'Fri';
-      case DateTime.saturday:
-        return 'Sat';
-      case DateTime.sunday:
-        return 'Sun';
-      default:
-        return '';
-    }
-  }
+  // =========================
+  // LOAD TASKS
+  // =========================
 
   Future<void> _loadTasksForSelectedDay() async {
     setState(() => _loading = true);
+
     try {
       final rows = await _db.getTasks(day: _selectedDate);
+
+      rows.sort((a, b) {
+        final pa = _statusPriority(_computeStatus(a));
+        final pb = _statusPriority(_computeStatus(b));
+        if (pa != pb) return pa.compareTo(pb);
+
+        DateTime build(Task t) {
+          if (t.startTime == null || t.startTime!.trim().isEmpty) {
+            return DateTime(t.date.year, t.date.month, t.date.day);
+          }
+          final parsed = DateFormat.jm().parse(t.startTime!);
+          return DateTime(
+            t.date.year,
+            t.date.month,
+            t.date.day,
+            parsed.hour,
+            parsed.minute,
+          );
+        }
+
+        return build(a).compareTo(build(b));
+      });
+
       if (!mounted) return;
       setState(() => _tasksForDay = rows);
     } finally {
@@ -78,379 +90,320 @@ class _SchedulePageState extends State<SchedulePage> {
     }
   }
 
-  // status for schedule card
+  int _statusPriority(String status) {
+    switch (status) {
+      case 'overdue':
+        return 0;
+      case 'in_progress':
+        return 1;
+      case 'todo':
+        return 2;
+      case 'done':
+        return 3;
+      default:
+        return 4;
+    }
+  }
+
   String _computeStatus(Task t) {
-    final raw = (t.status).trim().toLowerCase();
+    final raw = (t.status).toLowerCase();
     if (raw == 'done') return 'done';
 
+    final hasStart = t.startTime != null && t.startTime!.trim().isNotEmpty;
+    final hasEnd = t.endTime != null && t.endTime!.trim().isNotEmpty;
+
+    if (!hasStart || !hasEnd) {
+      return 'todo';
+    }
+
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final taskDay = DateTime(t.date.year, t.date.month, t.date.day);
 
-    if (taskDay.isBefore(today)) return 'overdue';
-
-    final hasStart = (t.startTime ?? '').trim().isNotEmpty;
-    final hasEnd = (t.endTime ?? '').trim().isNotEmpty;
-    if (!hasStart || !hasEnd) return 'todo';
-
-    try {
-      final s = DateFormat.jm().parse(t.startTime!);
-      final e = DateFormat.jm().parse(t.endTime!);
-      final start = DateTime(
-        taskDay.year,
-        taskDay.month,
-        taskDay.day,
-        s.hour,
-        s.minute,
+    DateTime parse(String time) {
+      final parsed = DateFormat.jm().parse(time);
+      return DateTime(
+        t.date.year,
+        t.date.month,
+        t.date.day,
+        parsed.hour,
+        parsed.minute,
       );
-      final end = DateTime(
-        taskDay.year,
-        taskDay.month,
-        taskDay.day,
-        e.hour,
-        e.minute,
-      );
+    }
 
-      if (now.isAfter(end)) return 'overdue';
-      if (now.isAfter(start) && now.isBefore(end)) return 'in_progress';
-    } catch (_) {}
+    final start = parse(t.startTime!);
+    DateTime end = parse(t.endTime!);
+
+    if (end.isBefore(start)) {
+      end = end.add(const Duration(days: 1));
+    }
+
+    if (now.isBefore(start)) return 'todo';
+    if (now.isAfter(start) && now.isBefore(end)) return 'in_progress';
+    if (now.isAfter(end)) return 'overdue';
 
     return 'todo';
   }
 
-  Color _getClockColor(String status) {
-    switch (status) {
-      case 'done':
-        return Colors.green;
-      case 'in_progress':
-        return Colors.orange;
-      case 'overdue':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  // =========================
+  // CALENDAR PICKER
+  // =========================
+
+  void _onMonthPicked(DateTime picked) async {
+    setState(() {
+      _anchorDate = picked;
+      _days = _generateDaysFrom(picked);
+      selectedDayIndex = 0;
+      _showMonthPicker = false;
+    });
+
+    await _loadTasksForSelectedDay();
   }
+
+  // =========================
+  // TIME PICKER (CUpertino wheel preserved)
+  // =========================
 
   Future<void> _setTaskTime(Task task) async {
     if ((task.status).toLowerCase() == 'done') return;
 
-    // Helpers
-    DateTime baseDay() =>
-        DateTime(task.date.year, task.date.month, task.date.day);
-
-    DateTime defaultNowOnTaskDay() {
-      final now = DateTime.now();
-      return DateTime(
-        task.date.year,
-        task.date.month,
-        task.date.day,
-        now.hour,
-        now.minute,
-      );
-    }
-
     DateTime parseOnTaskDay(String? t) {
-      if (t == null || t.trim().isEmpty) return defaultNowOnTaskDay();
-      try {
-        final dt = DateFormat.jm().parse(t);
+      if (t == null || t.trim().isEmpty) {
+        final now = DateTime.now();
         return DateTime(
           task.date.year,
           task.date.month,
           task.date.day,
-          dt.hour,
-          dt.minute,
+          now.hour,
+          now.minute,
         );
-      } catch (_) {
-        return defaultNowOnTaskDay();
       }
+
+      final parsed = DateFormat.jm().parse(t);
+      return DateTime(
+        task.date.year,
+        task.date.month,
+        task.date.day,
+        parsed.hour,
+        parsed.minute,
+      );
     }
-
-    String fmt(DateTime dt) => DateFormat.jm().format(dt);
-
-    int mins(DateTime dt) => dt.hour * 60 + dt.minute;
-
-    bool saving = false;
 
     DateTime startDT = parseOnTaskDay(task.startTime);
     DateTime endDT = parseOnTaskDay(task.endTime);
 
-    // If end is invalid compared to start, set end = start + 30 min (safe default)
-    if (mins(endDT) <= mins(startDT)) {
+    if (!endDT.isAfter(startDT)) {
       endDT = startDT.add(const Duration(minutes: 30));
-    }
-
-    Future<void> saveBoth() async {
-      if (saving) return;
-      saving = true;
-
-      // validate end > start
-      if (mins(endDT) <= mins(startDT)) {
-        saving = false;
-        return;
-      }
-
-      await _db.updateTask(
-        id: task.id!,
-        status: task.status,
-        title: task.title,
-        subtitle: task.subtitle,
-        date: task.date,
-        startTime: fmt(startDT),
-        endTime: fmt(endDT),
-      );
-
-      // reschedule notification at START
-      await NotificationServices.instance.cancelNotification(task.id!);
-
-      await NotificationServices.instance.scheduleNotification(
-        id: task.id!,
-        title: task.title,
-        body: "It's time for: ${task.title}",
-        scheduledDate: startDT,
-      );
-
-      saving = false;
-    }
-
-    Future<void> clearTimes() async {
-      if (saving) return;
-      saving = true;
-
-      await _db.updateTask(
-        id: task.id!,
-        status: task.status,
-        title: task.title,
-        subtitle: task.subtitle,
-        date: task.date,
-        startTime: null,
-        endTime: null,
-      );
-
-      await NotificationServices.instance.cancelNotification(task.id!);
-
-      saving = false;
     }
 
     await showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setStateSheet) {
-            final bool invalidRange = mins(endDT) <= mins(startDT);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
 
-            Future<void> onStartChanged(DateTime dt) async {
-              startDT = DateTime(
-                baseDay().year,
-                baseDay().month,
-                baseDay().day,
-                dt.hour,
-                dt.minute,
-              );
-
-              // If start >= end, push end forward automatically (nice UX)
-              if (mins(endDT) <= mins(startDT)) {
-                endDT = startDT.add(const Duration(minutes: 30));
-              }
-
-              setStateSheet(() {});
-              await saveBoth();
-            }
-
-            Future<void> onEndChanged(DateTime dt) async {
-              endDT = DateTime(
-                baseDay().year,
-                baseDay().month,
-                baseDay().day,
-                dt.hour,
-                dt.minute,
-              );
-
-              setStateSheet(() {});
-              // Only save if valid
-              if (mins(endDT) > mins(startDT)) {
-                await saveBoth();
-              }
-            }
-
-            return SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom:
-                      MediaQuery.of(context).viewInsets.bottom +
-                      MediaQuery.of(context).padding.bottom +
-                      12,
-                ),
-                child: Column(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: () async {
-                              await clearTimes();
-                              if (mounted) await _loadTasksForSelectedDay();
-                              Navigator.pop(context);
-                            },
-                            child: const Text(
-                              "Clear",
-                              style: TextStyle(color: Color(0xff050c20)),
-                            ),
-                          ),
-                          const Text(
-                            "Set Start & End",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xff050c20),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              if (mounted) await _loadTasksForSelectedDay();
-                              Navigator.pop(context);
-                            },
-                            child: const Text(
-                              "Done",
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
+                    TextButton(
+                      onPressed: () async {
+                        await _db.updateTask(
+                          id: task.id!,
+                          status: task.status,
+                          title: task.title,
+                          subtitle: task.subtitle,
+                          date: task.date,
+                          startTime: null,
+                          endTime: null,
+                        );
 
-                    // START
-                    const Padding(
-                      padding: EdgeInsets.only(top: 10),
-                      child: Text(
-                        "Start",
-                        style: TextStyle(
-                          color: Color(0xff050c20),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: 128,
-                      child: CupertinoDatePicker(
-                        mode: CupertinoDatePickerMode.time,
-                        use24hFormat: false,
-                        initialDateTime: startDT,
-                        onDateTimeChanged: (dt) => onStartChanged(dt),
+                        await NotificationServices.instance.cancelNotification(
+                          task.id!,
+                        );
+
+                        if (mounted) {
+                          await _loadTasksForSelectedDay();
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text(
+                        "Clear",
+                        style: TextStyle(color: Colors.red),
                       ),
                     ),
 
-                    // END
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text(
-                        "End",
-                        style: TextStyle(
-                          color: Color(0xff050c20),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: 140,
-                      child: CupertinoDatePicker(
-                        mode: CupertinoDatePickerMode.time,
-                        use24hFormat: false,
-                        initialDateTime: endDT,
-                        onDateTimeChanged: (dt) => onEndChanged(dt),
-                      ),
+                    const Text(
+                      "Set Start & End",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
 
-                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: () async {
+                        if (!endDT.isAfter(startDT)) return;
 
-                    if (invalidRange)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          "End time must be after start time.",
-                          style: TextStyle(color: Colors.red, fontSize: 12),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    else
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          "Scrolling saves automatically.",
-                          style: TextStyle(color: Colors.black54, fontSize: 12),
-                          textAlign: TextAlign.center,
-                        ),
+                        await _db.updateTask(
+                          id: task.id!,
+                          status: task.status,
+                          title: task.title,
+                          subtitle: task.subtitle,
+                          date: task.date,
+                          startTime: DateFormat.jm().format(startDT),
+                          endTime: DateFormat.jm().format(endDT),
+                        );
+
+                        await NotificationServices.instance.cancelNotification(
+                          task.id!,
+                        );
+
+                        if (startDT.isAfter(DateTime.now())) {
+                          await NotificationServices.instance
+                              .scheduleNotification(
+                                id: task.id!,
+                                title: task.title,
+                                body: "It's time for: ${task.title}",
+                                scheduledDate: startDT,
+                              );
+                        }
+
+                        if (mounted) {
+                          await _loadTasksForSelectedDay();
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text(
+                        "Done",
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-
-                    const SizedBox(height: 10),
+                    ),
                   ],
                 ),
-              ),
+
+                const Divider(),
+
+                SizedBox(
+                  height: 120,
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    use24hFormat: false,
+                    initialDateTime: startDT,
+                    onDateTimeChanged: (dt) {
+                      startDT = dt;
+                      if (!endDT.isAfter(startDT)) {
+                        endDT = startDT.add(const Duration(minutes: 30));
+                      }
+                    },
+                  ),
+                ),
+
+                SizedBox(
+                  height: 120,
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    use24hFormat: false,
+                    initialDateTime: endDT,
+                    onDateTimeChanged: (dt) {
+                      endDT = dt;
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+              ],
             );
           },
         );
       },
     );
-
-    await _loadTasksForSelectedDay();
   }
+
+  // =========================
+  // UI
+  // =========================
 
   @override
   Widget build(BuildContext context) {
-    const pillColor = Color(0xff050c20);
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('M Y   S C H E D U L E'),
+        backgroundColor: scheme.surface,
+        elevation: 0,
         centerTitle: true,
+        title: Text(
+          'M Y   S C H E D U L E',
+          style: TextStyle(color: scheme.onSurface),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.calendar_month, color: scheme.onSurface),
+            onPressed: () {
+              setState(() => _showMonthPicker = !_showMonthPicker);
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildDaySelector(pillColor),
+            // ======================
+            // 🔥 4 DAY SELECTOR (ORIGINAL UI)
+            // ======================
+            _buildDaySelector(scheme),
+
+            // ======================
+            // 🔥 MONTH PICKER
+            // ======================
+            if (_showMonthPicker)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: CalendarDatePicker(
+                    initialDate: _selectedDate,
+                    firstDate: DateTime.now().subtract(
+                      const Duration(days: 365),
+                    ),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    onDateChanged: _onMonthPicked,
+                  ),
+                ),
+              ),
+
+            // ======================
+            // 🔥 TASK LIST
+            // ======================
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : _tasksForDay.isEmpty
-                  ? const Center(child: _EmptyScheduleState())
                   : RefreshIndicator(
                       onRefresh: _loadTasksForSelectedDay,
                       child: ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                         itemCount: _tasksForDay.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final t = _tasksForDay[index];
                           final status = _computeStatus(t);
-                          final clockColor = _getClockColor(status);
 
                           return MyScheduleCard(
                             title: t.title,
                             subtitle: t.subtitle,
-                            start: (t.startTime ?? '').isNotEmpty
-                                ? t.startTime!
-                                : '--:--',
-                            end: (t.endTime ?? '').isNotEmpty
-                                ? t.endTime!
-                                : '--:--',
+                            start: t.startTime ?? '--:--',
+                            end: t.endTime ?? '--:--',
                             status: status,
-                            avatarColor: Colors.blue.shade300,
+                            avatarColor: scheme.primary,
                             onClockTap: () => _setTaskTime(t),
-                            clockColor: clockColor,
+                            clockColor: scheme.primary,
                           );
                         },
                       ),
@@ -463,58 +416,102 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
-  Widget _buildDaySelector(Color pillColor) {
+  Widget _buildDaySelector(ColorScheme _) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        // container follows same logic as StatTile
+        color: isDark ? scheme.surfaceContainerHigh : scheme.surface,
         borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        children: List.generate(_days.length, (i) {
-          final isSel = i == selectedDayIndex;
-
-          return Expanded(
-            child: GestureDetector(
-              onTap: () async {
-                setState(() => selectedDayIndex = i);
-                await _loadTasksForSelectedDay();
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: isSel ? pillColor : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      _days[i].label,
-                      style: TextStyle(
-                        color: isSel ? Colors.white : pillColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _days[i].date.day.toString(),
-                      style: TextStyle(
-                        color: isSel ? Colors.white : pillColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+      child: Column(
+        children: [
+          // ================= MONTH =================
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Text(
+              DateFormat('MMMM yyyy').format(_selectedDate),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurface,
               ),
             ),
-          );
-        }),
+          ),
+
+          // ================= 4 DAYS =================
+          Row(
+            children: List.generate(_days.length, (i) {
+              final isSelected = i == selectedDayIndex;
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    setState(() => selectedDayIndex = i);
+                    await _loadTasksForSelectedDay();
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? scheme.primary
+                          : (isDark
+                                ? scheme.surfaceContainer
+                                : scheme.surfaceContainerHighest),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: scheme.primary.withValues(alpha: 0.35),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _days[i].label,
+                          style: TextStyle(
+                            color: isSelected
+                                ? scheme.onPrimary
+                                : scheme.onSurface.withValues(alpha: 0.7),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _days[i].date.day.toString(),
+                          style: TextStyle(
+                            color: isSelected
+                                ? scheme.onPrimary
+                                : scheme.onSurface,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -524,20 +521,4 @@ class _DayItem {
   final String label;
   final DateTime date;
   const _DayItem(this.label, this.date);
-}
-
-class _EmptyScheduleState extends StatelessWidget {
-  const _EmptyScheduleState();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 30),
-      child: Text(
-        "No tasks for this day",
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 14, color: Colors.grey),
-      ),
-    );
-  }
 }

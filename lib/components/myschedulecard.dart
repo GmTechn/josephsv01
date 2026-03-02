@@ -29,41 +29,58 @@ class MyScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     IconData statusIcon;
     Color statusColor;
 
-    // Switch icon & color depending on task status
     switch (status) {
       case 'done':
         statusIcon = CupertinoIcons.check_mark_circled_solid;
         statusColor = Colors.green;
         break;
-      case 'in_progress': // ✅ matches _computeStatus()
-      case 'in progress': // ✅ supports both
+      case 'in_progress':
+      case 'in progress':
         statusIcon = CupertinoIcons.clock_fill;
         statusColor = Colors.orange;
         break;
       case 'overdue':
         statusIcon = CupertinoIcons.xmark_circle_fill;
-        statusColor = Colors.red;
+        statusColor = isDark
+            ? const Color.fromARGB(255, 210, 10, 10) // rouge profond en dark
+            : Colors.red;
         break;
       default:
         statusIcon = CupertinoIcons.clock;
-        statusColor = Colors.blueGrey;
+        statusColor = scheme.outline;
     }
+
+    // 🔥 Background adaptatif
+    final backgroundColor = isDark
+        ? scheme.surfaceContainerHighest
+        : scheme.surface;
+
+    // 🔥 Texte adaptatif
+    final titleColor = scheme.onSurface;
+    final subtitleColor = scheme.onSurface.withOpacity(.65);
+    final startColor = scheme.onSurface.withOpacity(.85);
+    final endColor = scheme.onSurface.withOpacity(.65);
 
     return GestureDetector(
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: statusColor, width: 1.5),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(.06),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
-            ),
+            if (!isDark)
+              BoxShadow(
+                color: Colors.black.withOpacity(.06),
+                blurRadius: 10,
+                offset: const Offset(0, 6),
+              ),
           ],
         ),
         padding: const EdgeInsets.all(16),
@@ -77,14 +94,14 @@ class MyScheduleCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: Color(0xff050c20),
+                      color: titleColor,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                  Text(subtitle, style: TextStyle(color: subtitleColor)),
                 ],
               ),
             ),
@@ -93,30 +110,22 @@ class MyScheduleCard extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Time column
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       start,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: startColor,
                         fontSize: 13,
                       ),
                     ),
-                    Text(
-                      end,
-                      style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(end, style: TextStyle(color: endColor, fontSize: 13)),
                   ],
                 ),
                 const SizedBox(width: 16),
-                // Clock icon
                 InkWell(
                   onTap: onClockTap,
                   borderRadius: BorderRadius.circular(8),

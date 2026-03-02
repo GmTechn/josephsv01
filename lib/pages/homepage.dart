@@ -23,37 +23,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _start() async {
-    // ✅ keep splash
-    await Future.delayed(const Duration(seconds: 3));
+    // Splash delay
+    await Future.delayed(const Duration(seconds: 2));
 
     final prefs = await SharedPreferences.getInstance();
 
-    // ===========================
-    // 🔥 CHANGE #1 (optional debug)
-    // Add prints to see what's happening
-    // ===========================
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-    final hasAccount = prefs.getBool('hasAccount') ?? false;
 
-    debugPrint("hasSeenOnboarding = $hasSeenOnboarding");
-    debugPrint("hasAccount = $hasAccount");
-
-    // ===========================
-    // 🔥 CHANGE #2 (clean routing)
-    // Build the destination first, then navigate once
-    // ===========================
     if (!mounted) return;
 
-    final Widget next =
-        (hasSeenOnboarding && hasAccount) // ✅ same rule, but cleaner
-        ? const Dashboard()
-        : const OnboardingPage();
-
-    // ===========================
-    // 🔥 CHANGE #3 (safer navigation)
-    // Use pushReplacement only once (no duplicated blocks)
-    // ===========================
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => next));
+    if (hasSeenOnboarding) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const Dashboard()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingPage()),
+      );
+    }
   }
 
   @override
@@ -69,16 +58,14 @@ class _HomePageState extends State<HomePage> {
               size: 64,
             ),
             const SizedBox(height: 20),
-            Text(
+            const Text(
               "J O S E P H ' S",
-
               style: TextStyle(
                 fontFamily: 'Abel',
                 fontWeight: FontWeight.bold,
                 fontSize: 38,
-                color: const Color(0xff050c20),
+                color: Color(0xff050c20),
               ),
-
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -90,7 +77,6 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.grey.shade700,
                 fontSize: 14,
               ),
-
               textAlign: TextAlign.center,
             ),
           ],

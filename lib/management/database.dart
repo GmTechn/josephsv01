@@ -289,7 +289,7 @@ class DatabaseManager {
     final db = await database;
 
     final data = <String, Object?>{
-      if (status != null) 'status': status,
+      'status': ?status,
       if (title != null) 'title': title.trim(),
       if (subtitle != null) 'subtitle': subtitle.trim(),
       if (date != null) 'date': date.toIso8601String(),

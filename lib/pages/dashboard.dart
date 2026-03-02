@@ -1,25 +1,19 @@
-// ignore_for_file: use_build_context_synchronously, deprecated_member_use, depend_on_referenced_packages
+// ignore_for_file: use_build_context_synchronously, depend_on_referenced_packages, deprecated_member_use
 
 import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:josephs_vs_01/components/mytextformfield.dart';
-import 'package:josephs_vs_01/pages/settings.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:intl/intl.dart';
+import 'package:josephs_vs_01/models/tasks.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:josephs_vs_01/components/mynavbar.dart';
 import 'package:josephs_vs_01/components/stattile.dart';
+import 'package:josephs_vs_01/pages/settings.dart';
 import 'package:josephs_vs_01/management/database.dart';
-import 'package:josephs_vs_01/models/tasks.dart';
 import 'package:josephs_vs_01/models/users.dart';
-import 'package:josephs_vs_01/pages/schedule.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -29,9 +23,7 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  //database instance
   final DatabaseManager _db = DatabaseManager();
-  //current user
   AppUser? _currentUser;
 
   final ImagePicker _picker = ImagePicker();
@@ -55,18 +47,12 @@ class _DashboardState extends State<Dashboard> {
     await _loadDashboardTasks();
   }
 
-  // ----------------------------
-  // USER
-  // ----------------------------
   Future<void> _loadUser() async {
     final u = await _db.getLocalUser();
     if (!mounted) return;
     setState(() => _currentUser = u);
   }
 
-  // ----------------------------
-  // TASKS for dashboard
-  // ----------------------------
   Future<void> _loadDashboardTasks() async {
     final all = await _db.getTasks();
 
@@ -81,16 +67,22 @@ class _DashboardState extends State<Dashboard> {
 
     for (final t in all) {
       final taskDay = DateTime(t.date.year, t.date.month, t.date.day);
+
+      final sameDay =
+          taskDay.year == today.year &&
+          taskDay.month == today.month &&
+          taskDay.day == today.day;
+
       final isDone = (t.status).toLowerCase() == 'done';
 
-      // completed today count
-      if (isDone && taskDay == today) {
+      // Completed today counter
+      if (isDone && sameDay) {
         completed++;
         continue;
       }
 
-      // show ONLY today's tasks in list
-      if (taskDay != today) continue;
+      // Only display today tasks in list
+      if (!sameDay) continue;
 
       final res = _computeTodayStatusAndColor(t, now, today);
       if (res.status == 'overdue') overdue++;
@@ -100,9 +92,9 @@ class _DashboardState extends State<Dashboard> {
       );
     }
 
-    // sort by start time if exists
+    // Sort by start time
     int timeKey(String? st, String status) {
-      if (status == 'no_time') return 24 * 60 + 2; // always last
+      if (status == 'no_time') return 24 * 60 + 2;
       if (st == null || st.trim().isEmpty) return 24 * 60 + 2;
       try {
         final dt = DateFormat.jm().parse(st);
@@ -120,6 +112,7 @@ class _DashboardState extends State<Dashboard> {
     );
 
     if (!mounted) return;
+
     setState(() {
       totalTasks = total;
       completedToday = completed;
@@ -128,284 +121,6 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
-  // ----------------------------
-  // GREETING
-  // ----------------------------
-  String _timeGreetingText() {
-    final h = DateTime.now().hour;
-    if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
-    return "Good evening";
-  }
-
-  IconData _timeGreetingIcon() {
-    final h = DateTime.now().hour;
-    if (h < 12) return CupertinoIcons.sun_max_fill;
-    if (h < 17) return CupertinoIcons.cloud_sun_fill;
-    return CupertinoIcons.moon_fill;
-  }
-
-  // ----------------------------
-  // NAV
-  // ----------------------------
-  void _openSchedulePage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SchedulePage()),
-    ).then((_) => _loadDashboardTasks());
-  }
-
-  // ----------------------------
-  // PHOTO save
-  // ----------------------------
-  Future<String> _persistImageToAppDir(File imageFile) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final fileName = "pp_${DateTime.now().millisecondsSinceEpoch}.jpg";
-    final saved = File("${dir.path}/$fileName");
-
-    final bytes = await imageFile.readAsBytes();
-    await saved.writeAsBytes(bytes, flush: true);
-    return saved.path;
-  }
-
-  // ✅ NEW: macOS direct file picker (gallery only)
-  Future<File?> _pickFromMacGalleryOnly() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
-    if (result == null || result.files.isEmpty) return null;
-
-    final path = result.files.single.path;
-    if (path == null) return null;
-    return File(path);
-  }
-
-  // ✅ UPDATED: platform safe pick/crop/save
-  Future<void> _pickCropAndSavePp(ImageSource source) async {
-    if (_picking) return;
-    setState(() => _picking = true);
-
-    try {
-      // macOS: no camera + no cropper
-      if (!kIsWeb && Platform.isMacOS) {
-        // We do NOT allow camera on macOS
-        if (source == ImageSource.camera) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Camera is not available on macOS. Please use Gallery.",
-              ),
-              backgroundColor: Color(0xff050c20),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          return;
-        }
-
-        final file = await _pickFromMacGalleryOnly();
-        if (file == null) return;
-
-        final newPath = await _persistImageToAppDir(file);
-
-        final oldPath = _currentUser?.photoPath ?? '';
-        if (oldPath.isNotEmpty) {
-          final f = File(oldPath);
-          if (await f.exists()) await f.delete();
-        }
-
-        await _db.updateLocalUser(photoPath: newPath);
-        await _loadUser();
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Profile picture updated ✅"),
-            backgroundColor: Color(0xff050c20),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      // iOS/Android: picker + crop
-      final picked = await _picker.pickImage(source: source, imageQuality: 90);
-      if (picked == null) return;
-
-      final CroppedFile? cropped = await ImageCropper().cropImage(
-        sourcePath: picked.path,
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Image',
-            toolbarColor: const Color(0xff050c20),
-            toolbarWidgetColor: Colors.white,
-            lockAspectRatio: true,
-          ),
-          IOSUiSettings(title: 'Crop Image', aspectRatioLockEnabled: true),
-        ],
-      );
-
-      if (cropped == null) return;
-
-      final newPath = await _persistImageToAppDir(File(cropped.path));
-
-      final oldPath = _currentUser?.photoPath ?? '';
-      if (oldPath.isNotEmpty) {
-        final f = File(oldPath);
-        if (await f.exists()) await f.delete();
-      }
-
-      await _db.updateLocalUser(photoPath: newPath);
-      await _loadUser();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Profile picture updated ✅"),
-          backgroundColor: Color(0xff050c20),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _picking = false);
-    }
-  }
-
-  // ✅ UPDATED: EXACT behavior you asked for
-  void _showPpSourceSheet() {
-    // macOS -> open picker directly (NO bottom sheet)
-    if (!kIsWeb && Platform.isMacOS) {
-      _pickCropAndSavePp(ImageSource.gallery);
-      return;
-    }
-
-    // mobile -> show sheet camera/gallery
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (_) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(CupertinoIcons.photo_camera_solid),
-              title: const Text("Camera"),
-              onTap: () {
-                Navigator.pop(context);
-                _pickCropAndSavePp(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.photo),
-              title: const Text("Gallery"),
-              onTap: () {
-                Navigator.pop(context);
-                _pickCropAndSavePp(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _editNameDialog() async {
-    final fnameCtrl = TextEditingController(text: _currentUser?.fname ?? '');
-    final lnameCtrl = TextEditingController(text: _currentUser?.lname ?? '');
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit Name', textAlign: TextAlign.center),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Mytextformfield(controller: fnameCtrl, hintText: "First Name"),
-            const SizedBox(height: 10),
-            Mytextformfield(controller: lnameCtrl, hintText: "Last Name"),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              "Cancel",
-              style: TextStyle(color: Color(0xff050c20)),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              "Save",
-              style: TextStyle(color: Color(0xff050c20)),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (saved != true) return;
-
-    await _db.updateLocalUser(
-      fname: fnameCtrl.text.trim(),
-      lname: lnameCtrl.text.trim(),
-    );
-
-    await _loadUser();
-  }
-
-  void _onAvatarTap() {
-    final path = _currentUser?.photoPath ?? '';
-    final hasPhoto = path.isNotEmpty && File(path).existsSync();
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Center(child: Text('Profile Picture')),
-        content: SizedBox(
-          width: 260,
-          height: 260,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: hasPhoto
-                ? Image.file(File(path), fit: BoxFit.cover)
-                : Container(
-                    color: Colors.grey.shade200,
-                    child: const Icon(CupertinoIcons.person_fill, size: 90),
-                  ),
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "Close",
-              style: TextStyle(color: Color(0xff050c20)),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showPpSourceSheet(); // ✅ this now matches the rule
-            },
-            child: const Text(
-              "Modify",
-              style: TextStyle(color: Color(0xff050c20)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ----------------------------
-  // STATUS/Color/Label for today cards
-  // ----------------------------
   ({String status, Color color}) _computeTodayStatusAndColor(
     Task task,
     DateTime now,
@@ -425,6 +140,7 @@ class _DashboardState extends State<Dashboard> {
           parsed.minute,
         );
       }
+
       if ((task.endTime ?? '').trim().isNotEmpty) {
         final parsedEnd = DateFormat.jm().parse(task.endTime!);
         end = DateTime(
@@ -454,128 +170,266 @@ class _DashboardState extends State<Dashboard> {
 
     final raw = task.status.toLowerCase();
     if (raw == 'done') return (status: 'done', color: Colors.green);
-    if (raw == 'in progress' || raw == 'in_progress') {
-      return (status: 'in_progress', color: Colors.orange);
-    }
 
-    // If no time set yet -> grey + special status
     final hasStart = (task.startTime ?? '').trim().isNotEmpty;
     final hasEnd = (task.endTime ?? '').trim().isNotEmpty;
 
     if (!hasStart || !hasEnd) {
       return (status: 'no_time', color: Colors.grey);
     }
+
     return (status: 'todo', color: Colors.grey);
   }
 
-  String _statusLabel(_DashTaskItem item) {
-    final time = (item.task.startTime ?? '').trim().isNotEmpty
-        ? item.task.startTime!
-        : "--:--";
+  // ================= GREETING =================
 
-    switch (item.status) {
-      case "overdue":
-        return "${item.task.title} is overdue!\nEnded at ${item.task.endTime ?? '--:--'}";
-      case "in_progress":
-        return "It's time for: ${item.task.title} ($time)";
-      case "next":
-        return "Next: ${item.task.title} at $time";
-      case "no_time":
-        return "${item.task.title} (No time set yet)";
+  String _timeGreetingText() {
+    final h = DateTime.now().hour;
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  }
 
-      default:
-        return "${item.task.title} (No time set)";
+  IconData _timeGreetingIcon() {
+    final h = DateTime.now().hour;
+    if (h < 12) return CupertinoIcons.sun_max_fill;
+    if (h < 17) return CupertinoIcons.cloud_sun_fill;
+    return CupertinoIcons.moon_fill;
+  }
+
+  // ================= PHOTO =================
+
+  Future<String> _persistImage(File imageFile) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final fileName = "pp_${DateTime.now().millisecondsSinceEpoch}.jpg";
+    final saved = File("${dir.path}/$fileName");
+    await saved.writeAsBytes(await imageFile.readAsBytes());
+    return saved.path;
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    if (_picking) return;
+    setState(() => _picking = true);
+
+    try {
+      final picked = await _picker.pickImage(source: source);
+      if (picked == null) return;
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      );
+
+      if (cropped == null) return;
+
+      final newPath = await _persistImage(File(cropped.path));
+
+      await _db.updateLocalUser(photoPath: newPath);
+      await _loadUser();
+    } finally {
+      if (mounted) setState(() => _picking = false);
     }
   }
 
-  // ----------------------------
-  // BUILD TASK LIST
-  // ----------------------------
-  Widget _buildTaskList() {
-    if (todayTasks.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Text(
-          "No tasks for today",
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return Column(
-      children: todayTasks.map((item) {
-        return GestureDetector(
-          onTap: _openSchedulePage,
-          child: Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: item.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: item.color.withOpacity(0.4)),
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(CupertinoIcons.photo_camera),
+              title: const Text("Camera"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _statusLabel(item),
-                  style: TextStyle(
-                    color: item.color,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.task.subtitle,
-                  style: TextStyle(
-                    color: item.color.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+            ListTile(
+              leading: const Icon(CupertinoIcons.photo),
+              title: const Text("Gallery"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
             ),
-          ),
-        );
-      }).toList(),
+          ],
+        ),
+      ),
     );
   }
 
-  // ----------------------------
-  // UI
-  // ----------------------------
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'D A S H B O A R D',
-          style: TextStyle(color: Color(0xff050c20)),
+  void _onAvatarTap() {
+    final scheme = Theme.of(context).colorScheme;
+    final path = _currentUser?.photoPath ?? '';
+    final hasPhoto = path.isNotEmpty && File(path).existsSync();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: scheme.surface,
+        title: Center(
+          child: Text(
+            "Profile Picture",
+            style: TextStyle(color: scheme.onSurface),
+          ),
         ),
+        content: SizedBox(
+          width: 260,
+          height: 260,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: hasPhoto
+                ? Image.file(File(path), fit: BoxFit.cover)
+                : Container(
+                    color: scheme.surfaceContainerHighest,
+                    child: Icon(
+                      CupertinoIcons.person_fill,
+                      size: 90,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
-          Row(
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Close", style: TextStyle(color: scheme.primary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showPhotoOptions();
+            },
+            child: Text("Modify", style: TextStyle(color: scheme.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dialogField(String hint, TextEditingController controller) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: scheme.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: scheme.onSurface.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.onSurface),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editName() async {
+    final scheme = Theme.of(context).colorScheme;
+
+    final fnameCtrl = TextEditingController(text: _currentUser?.fname ?? '');
+    final lnameCtrl = TextEditingController(text: _currentUser?.lname ?? '');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: scheme.surface,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                tooltip: "Settings",
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SettingsPage()),
-                  ).then((_) => _loadDashboardTasks());
-                },
-                icon: const Icon(
-                  CupertinoIcons.settings,
-                  color: Color(0xff050c20),
+              Text(
+                "Edit Name",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onSurface,
                 ),
               ),
-              const SizedBox(width: 10),
+
+              const SizedBox(height: 24),
+
+              _dialogField("First Name", fnameCtrl),
+              const SizedBox(height: 16),
+              _dialogField("Last Name", lnameCtrl),
+
+              const SizedBox(height: 24),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(
+                      "Cancel",
+                      style: TextStyle(color: scheme.onSurface),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text(
+                      "Save",
+                      style: TextStyle(color: scheme.onSurface),
+                    ),
+                  ),
+                ],
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+
+    await _db.updateLocalUser(
+      fname: fnameCtrl.text.trim(),
+      lname: lnameCtrl.text.trim(),
+    );
+
+    await _loadUser();
+  }
+
+  // ================= UI =================
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        title: Text(
+          'D A S H B O A R D',
+          style: TextStyle(color: scheme.onSurface),
+        ),
+        backgroundColor: scheme.surface,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(CupertinoIcons.settings, color: scheme.onSurface),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
           ),
         ],
       ),
@@ -583,8 +437,8 @@ class _DashboardState extends State<Dashboard> {
         child: RefreshIndicator(
           onRefresh: _refreshAll,
           child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -595,7 +449,6 @@ class _DashboardState extends State<Dashboard> {
                 _buildTodayCard(),
                 const SizedBox(height: 18),
                 _buildTaskList(),
-                const SizedBox(height: 18),
               ],
             ),
           ),
@@ -606,6 +459,13 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final bool isOriginal =
+        theme.brightness == Brightness.light &&
+        scheme.primary == const Color(0xFF050C20);
+
     final fullName =
         ((_currentUser?.fname ?? '').trim().isEmpty &&
             (_currentUser?.lname ?? '').trim().isEmpty)
@@ -616,10 +476,13 @@ class _DashboardState extends State<Dashboard> {
     final hasPhoto = path.isNotEmpty && File(path).existsSync();
 
     return Container(
-      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: isOriginal
+            ? Colors
+                  .grey
+                  .shade100 // 🔥 your real original color
+            : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -628,10 +491,13 @@ class _DashboardState extends State<Dashboard> {
             onTap: _onAvatarTap,
             child: CircleAvatar(
               radius: 26,
-              backgroundColor: Colors.white,
+              backgroundColor: isOriginal ? Colors.white : scheme.surface,
               backgroundImage: hasPhoto ? FileImage(File(path)) : null,
               child: !hasPhoto
-                  ? const Icon(CupertinoIcons.person_fill, color: Colors.grey)
+                  ? Icon(
+                      CupertinoIcons.person_fill,
+                      color: isOriginal ? Colors.grey : scheme.onSurfaceVariant,
+                    )
                   : null,
             ),
           ),
@@ -645,13 +511,17 @@ class _DashboardState extends State<Dashboard> {
                     Icon(
                       _timeGreetingIcon(),
                       size: 18,
-                      color: const Color(0xff050c20),
+                      color: isOriginal
+                          ? const Color(0xFF050C20)
+                          : scheme.onSurface,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       "${_timeGreetingText()},",
-                      style: const TextStyle(
-                        color: Color(0xff050c20),
+                      style: TextStyle(
+                        color: isOriginal
+                            ? const Color(0xFF050C20)
+                            : scheme.onSurface,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -659,12 +529,14 @@ class _DashboardState extends State<Dashboard> {
                 ),
                 const SizedBox(height: 4),
                 GestureDetector(
-                  onTap: _editNameDialog,
+                  onTap: _editName,
                   child: Text(
                     fullName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xff050c20),
+                      color: isOriginal
+                          ? const Color(0xFF050C20)
+                          : scheme.onSurface,
                     ),
                   ),
                 ),
@@ -677,6 +549,13 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _buildStats() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final bool isOriginal =
+        theme.brightness == Brightness.light &&
+        scheme.primary == const Color(0xFF050C20);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -685,7 +564,10 @@ class _DashboardState extends State<Dashboard> {
             icon: CupertinoIcons.book_fill,
             label: 'Notes',
             value: '$totalTasks',
-            iconColor: Colors.orange,
+            iconColor: isOriginal
+                ? Colors
+                      .orange // 🔥 your original Notes color
+                : scheme.primary,
           ),
         ),
         const SizedBox(width: 6),
@@ -694,7 +576,10 @@ class _DashboardState extends State<Dashboard> {
             icon: CupertinoIcons.checkmark_seal_fill,
             label: 'Tasks',
             value: '$completedToday',
-            iconColor: Colors.green,
+            iconColor: isOriginal
+                ? Colors
+                      .green // 🔥 your original Tasks color
+                : scheme.tertiary,
           ),
         ),
       ],
@@ -702,37 +587,105 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _buildTodayCard() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final bool isOriginal =
+        theme.brightness == Brightness.light &&
+        scheme.primary == const Color(0xFF050C20);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isOriginal ? Colors.white : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: isOriginal
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Today',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xff050c20),
+              color: isOriginal ? const Color(0xFF050C20) : scheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             "Keep up the streak! You've completed $completedToday items today.",
-            style: const TextStyle(color: Color(0xff050c20)),
+            style: TextStyle(
+              color: isOriginal ? const Color(0xFF050C20) : scheme.onSurface,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTaskList() {
+    if (todayTasks.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          "No tasks for today",
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: todayTasks.map((item) {
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: item.color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: item.color.withOpacity(0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.task.title,
+                style: TextStyle(
+                  color: item.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                item.task.subtitle,
+                style: TextStyle(color: item.color.withOpacity(0.7)),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

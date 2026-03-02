@@ -43,3 +43,19 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# iOS build artifacts (VERY IMPORTANT)
+ios/build/
+ios/Pods/
+ios/.symlinks/
+
+# macOS build artifacts
+macos/Build/
+
+# Xcode
+DerivedData/
+*.xcarchive
+xcuserdata/
+
+# Your accidental backup folder
+ios_backup/

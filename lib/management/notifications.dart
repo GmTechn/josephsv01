@@ -1,5 +1,6 @@
 // ignore_for_file: depend_on_referenced_packages
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,17 +16,28 @@ class NotificationServices {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  // ----------------------------
+  // TIMEZONE
+  // ----------------------------
   static Future<void> initTimeZone() async {
     tzdata.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('America/Montreal'));
   }
 
+  // ----------------------------
+  // SETTINGS FLAG
+  // ----------------------------
   Future<bool> _isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('notifications_enabled') ?? true;
   }
 
+  // ----------------------------
+  // INITIALIZE
+  // ----------------------------
   Future<void> initialize() async {
+    await initTimeZone();
+
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const iosInit = DarwinInitializationSettings(
@@ -34,55 +46,95 @@ class NotificationServices {
       requestSoundPermission: true,
     );
 
-    // =========================
-    // ✅ CHANGE #1: ADD macOS init settings
-    // =========================
     const macosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    // =========================
-    // ✅ CHANGE #2: Include macOS in InitializationSettings
-    // =========================
     const settings = InitializationSettings(
       android: androidInit,
       iOS: iosInit,
-      macOS: macosInit, // ✅ ADD THIS
+      macOS: macosInit,
     );
 
     await flutterLocalNotificationsPlugin.initialize(
       settings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        // ✅ Click notif -> Dashboard
+      onDidReceiveNotificationResponse: (_) {
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
           '/dashboard',
           (_) => false,
         );
       },
     );
+
+    await _createAndroidChannels();
+    await requestAndroidPermissions();
   }
 
-  Future<void> requestIOSPermissions() async {
-    await flutterLocalNotificationsPlugin
+  // ----------------------------
+  // ANDROID CHANNELS
+  // ----------------------------
+  Future<void> _createAndroidChannels() async {
+    if (kIsWeb) return;
+
+    final android = flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
+    if (android == null) return;
+
+    const defaultChannel = AndroidNotificationChannel(
+      'default_channel',
+      'General Notifications',
+      description: 'General app notifications',
+      importance: Importance.max,
+    );
+
+    const scheduledChannel = AndroidNotificationChannel(
+      'scheduled_channel',
+      'Scheduled Notifications',
+      description: 'Scheduled app notifications',
+      importance: Importance.max,
+    );
+
+    await android.createNotificationChannel(defaultChannel);
+    await android.createNotificationChannel(scheduledChannel);
   }
 
-  // =========================
-  // ✅ OPTIONAL: request macOS permissions too
-  // =========================
-  Future<void> requestMacOSPermissions() async {
-    await flutterLocalNotificationsPlugin
+  // ----------------------------
+  // ANDROID PERMISSIONS
+  // ----------------------------
+  Future<void> requestAndroidPermissions() async {
+    final android = flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-          MacOSFlutterLocalNotificationsPlugin
-        >()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
+    if (android == null) return;
+
+    await android.requestNotificationsPermission();
   }
 
+  // ----------------------------
+  // DEBUG (USED IN SETTINGS)
+  // ----------------------------
+  Future<String> debugPermissions() async {
+    final android = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
+    if (android == null) return "Android plugin not available";
+
+    final enabled = await android.areNotificationsEnabled();
+    return "Android notifications enabled: $enabled";
+  }
+
+  // ----------------------------
+  // SHOW NOW
+  // ----------------------------
   Future<void> showNotification({
     required String title,
     required String body,
@@ -94,26 +146,18 @@ class NotificationServices {
       android: AndroidNotificationDetails(
         'default_channel',
         'General Notifications',
+        channelDescription: 'General app notifications',
         importance: Importance.max,
         priority: Priority.high,
       ),
-      iOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      ),
-      // (No extra macOS details required here; DarwinNotificationDetails covers it)
     );
 
-    await flutterLocalNotificationsPlugin.show(
-      id,
-      title,
-      body,
-      details,
-      payload: 'open_dashboard',
-    );
+    await flutterLocalNotificationsPlugin.show(id, title, body, details);
   }
 
+  // ----------------------------
+  // SCHEDULE (NO iOS interpretation param to avoid your errors)
+  // ----------------------------
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -127,13 +171,9 @@ class NotificationServices {
       android: AndroidNotificationDetails(
         'scheduled_channel',
         'Scheduled Notifications',
+        channelDescription: 'Scheduled app notifications',
         importance: Importance.max,
         priority: Priority.high,
-      ),
-      iOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
       ),
     );
 
@@ -144,35 +184,19 @@ class NotificationServices {
       tz.TZDateTime.from(scheduledDate, tz.local),
       details,
       payload: 'open_dashboard',
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null,
     );
   }
 
+  // ----------------------------
+  // CANCEL
+  // ----------------------------
   Future<void> cancelNotification(int id) async {
     await flutterLocalNotificationsPlugin.cancel(id);
   }
 
   Future<void> cancelAll() async {
     await flutterLocalNotificationsPlugin.cancelAll();
-  }
-
-  Future<String> debugPermissions() async {
-    final ios = flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >();
-
-    if (ios == null) return "Not iOS / iOS plugin not available";
-
-    final result = await ios.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    return result == true
-        ? "iOS permissions: GRANTED ✅"
-        : "iOS permissions: DENIED ❌";
   }
 }

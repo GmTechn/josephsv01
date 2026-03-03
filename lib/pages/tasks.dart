@@ -344,8 +344,11 @@ class _TasksPageState extends State<TasksPage> {
   // BOTTOM SHEET OPTIONS (tap on card)
   // ----------------------------
   void _showTaskOptions(Task task) {
+    final scheme = Theme.of(context).colorScheme;
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: scheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -354,11 +357,14 @@ class _TasksPageState extends State<TasksPage> {
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   CupertinoIcons.check_mark_circled_solid,
-                  color: Color(0xff050c20),
+                  color: scheme.primary,
                 ),
-                title: const Text("Mark as Done"),
+                title: Text(
+                  "Mark as Done",
+                  style: TextStyle(color: scheme.onSurface),
+                ),
                 onTap: () async {
                   Navigator.pop(context);
                   await _db.updateTask(
@@ -374,11 +380,11 @@ class _TasksPageState extends State<TasksPage> {
                 },
               ),
               ListTile(
-                leading: const Icon(
-                  CupertinoIcons.pencil,
-                  color: Color(0xff050c20),
+                leading: Icon(CupertinoIcons.pencil, color: scheme.primary),
+                title: Text(
+                  "Edit Task",
+                  style: TextStyle(color: scheme.onSurface),
                 ),
-                title: const Text("Edit Task"),
                 onTap: () {
                   Navigator.pop(context);
                   _showCreateOrEditTaskDialog(task: task);

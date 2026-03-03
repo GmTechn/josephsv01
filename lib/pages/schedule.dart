@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'package:josephs_vs_01/components/mynavbar.dart';
 import 'package:josephs_vs_01/components/myschedulecard.dart';
+import 'package:josephs_vs_01/main.dart'; // ✅ for AppThemeKey (original theme)
 import 'package:josephs_vs_01/management/database.dart';
 import 'package:josephs_vs_01/management/notifications.dart';
 import 'package:josephs_vs_01/models/tasks.dart';
@@ -159,7 +160,7 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   // =========================
-  // TIME PICKER (CUpertino wheel preserved)
+  // TIME PICKER (Cupertino wheel preserved)
   // =========================
 
   Future<void> _setTaskTime(Task task) async {
@@ -330,6 +331,12 @@ class _SchedulePageState extends State<SchedulePage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
+    final bool isOriginal =
+        Theme.of(context).extension<AppThemeKey>()?.key == "original";
+    final Color brandColor = isOriginal
+        ? const Color(0xff050c20)
+        : scheme.primary;
+
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
@@ -353,34 +360,45 @@ class _SchedulePageState extends State<SchedulePage> {
         child: Column(
           children: [
             // ======================
-            // 🔥 4 DAY SELECTOR (ORIGINAL UI)
+            // 4 DAY SELECTOR
             // ======================
-            _buildDaySelector(scheme),
+            _buildDaySelector(),
 
             // ======================
-            // 🔥 MONTH PICKER
+            // MONTH PICKER
             // ======================
             if (_showMonthPicker)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
+                    color: isOriginal
+                        ? Colors.grey.shade100
+                        : scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: CalendarDatePicker(
-                    initialDate: _selectedDate,
-                    firstDate: DateTime.now().subtract(
-                      const Duration(days: 365),
+                  child: Theme(
+                    data: isOriginal
+                        ? Theme.of(context).copyWith(
+                            colorScheme: Theme.of(context).colorScheme.copyWith(
+                              primary: const Color(0xff050c20),
+                            ),
+                          )
+                        : Theme.of(context),
+                    child: CalendarDatePicker(
+                      initialDate: _selectedDate,
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 365),
+                      ),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      onDateChanged: _onMonthPicked,
                     ),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                    onDateChanged: _onMonthPicked,
                   ),
                 ),
               ),
 
             // ======================
-            // 🔥 TASK LIST
+            // TASK LIST
             // ======================
             Expanded(
               child: _loading
@@ -401,9 +419,9 @@ class _SchedulePageState extends State<SchedulePage> {
                             start: t.startTime ?? '--:--',
                             end: t.endTime ?? '--:--',
                             status: status,
-                            avatarColor: scheme.primary,
+                            avatarColor: brandColor,
                             onClockTap: () => _setTaskTime(t),
-                            clockColor: scheme.primary,
+                            clockColor: brandColor,
                           );
                         },
                       ),
@@ -416,20 +434,28 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
-  Widget _buildDaySelector(ColorScheme _) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildDaySelector() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+
+    const Color brandColor = Color(0xff050c20);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
-        // container follows same logic as StatTile
-        color: isDark ? scheme.surfaceContainerHigh : scheme.surface,
+        color: isOriginal
+            ? Colors.grey.shade100
+            : (isDark
+                  ? scheme.surfaceContainerHigh
+                  : scheme.surfaceContainerHighest),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.06),
+            color: Colors.black.withOpacity(.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -437,7 +463,7 @@ class _SchedulePageState extends State<SchedulePage> {
       ),
       child: Column(
         children: [
-          // ================= MONTH =================
+          // MONTH
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: Text(
@@ -445,12 +471,12 @@ class _SchedulePageState extends State<SchedulePage> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
+                color: isOriginal ? brandColor : scheme.onSurface,
               ),
             ),
           ),
 
-          // ================= 4 DAYS =================
+          // 4 DAYS
           Row(
             children: List.generate(_days.length, (i) {
               final isSelected = i == selectedDayIndex;
@@ -466,16 +492,16 @@ class _SchedulePageState extends State<SchedulePage> {
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? scheme.primary
-                          : (isDark
-                                ? scheme.surfaceContainer
-                                : scheme.surfaceContainerHighest),
+                      color: isOriginal
+                          ? (isSelected ? brandColor : Colors.white)
+                          : (isSelected ? scheme.primary : scheme.surface),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: scheme.primary.withValues(alpha: 0.35),
+                                color: isOriginal
+                                    ? brandColor.withOpacity(.25)
+                                    : scheme.primary.withOpacity(.35),
                                 blurRadius: 14,
                                 offset: const Offset(0, 6),
                               ),
@@ -487,9 +513,11 @@ class _SchedulePageState extends State<SchedulePage> {
                         Text(
                           _days[i].label,
                           style: TextStyle(
-                            color: isSelected
-                                ? scheme.onPrimary
-                                : scheme.onSurface.withValues(alpha: 0.7),
+                            color: isOriginal
+                                ? (isSelected ? Colors.white : brandColor)
+                                : (isSelected
+                                      ? scheme.onPrimary
+                                      : scheme.onSurface.withOpacity(0.7)),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -497,9 +525,11 @@ class _SchedulePageState extends State<SchedulePage> {
                         Text(
                           _days[i].date.day.toString(),
                           style: TextStyle(
-                            color: isSelected
-                                ? scheme.onPrimary
-                                : scheme.onSurface,
+                            color: isOriginal
+                                ? (isSelected ? Colors.white : brandColor)
+                                : (isSelected
+                                      ? scheme.onPrimary
+                                      : scheme.onSurface),
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),

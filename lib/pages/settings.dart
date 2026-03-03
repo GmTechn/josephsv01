@@ -79,7 +79,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _themeTile("Purple", "purple"),
             _themeTile("Green", "green"),
             _themeTile("Red", "red"),
-            _themeTile("Orange", "orange"),
+            // _themeTile("Orange", "orange"),
             _themeTile("Original", "original"),
           ],
         ),

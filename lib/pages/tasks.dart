@@ -400,30 +400,45 @@ class _TasksPageState extends State<TasksPage> {
 
   //----- Show start trial dialog ----///
   void _showUpgradeDialog() {
+    final scheme = Theme.of(context).colorScheme;
+    final isOriginal =
+        Theme.of(context).extension<AppThemeKey>()?.key == "original";
+
+    final textColor = isOriginal ? const Color(0xff050c20) : scheme.onSurface;
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text(
+        backgroundColor: scheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           "Unlock Voice",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
         ),
-        content: const Text(
+        content: Text(
           "Start your 7-day free trial.\n\nThen \$2.99/month.",
-          style: TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: 14, color: textColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Not now"),
+            child: Text("Not now", style: TextStyle(color: textColor)),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await subscriptionService.buy();
             },
-            child: const Text(
+            child: Text(
               "Start Trial",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isOriginal ? const Color(0xff050c20) : scheme.primary,
+              ),
             ),
           ),
         ],
@@ -703,28 +718,49 @@ class _TasksPageState extends State<TasksPage> {
                     if (title.isEmpty || selectedDate == null) {
                       showDialog(
                         context: context,
-                        builder: (_) => AlertDialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          title: const Text(
-                            "Missing information",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                        builder: (_) {
+                          final scheme = Theme.of(context).colorScheme;
+                          final isOriginal =
+                              Theme.of(context).extension<AppThemeKey>()?.key ==
+                              "original";
+
+                          final textColor = isOriginal
+                              ? const Color(0xff050c20)
+                              : scheme.onSurface;
+
+                          return AlertDialog(
+                            backgroundColor: scheme.surface,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          ),
-                          content: const Text(
-                            "Please enter a title and select a date before continuing.",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("OK"),
+                            title: Text(
+                              "Missing information",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: textColor,
+                              ),
                             ),
-                          ],
-                        ),
+                            content: Text(
+                              "Please enter a title and select a date before continuing.",
+                              style: TextStyle(fontSize: 14, color: textColor),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Text(
+                                  "OK",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: isOriginal
+                                        ? const Color(0xff050c20)
+                                        : scheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                       return;
                     }
@@ -758,7 +794,10 @@ class _TasksPageState extends State<TasksPage> {
                   },
                   child: Text(
                     isEdit ? "Save" : "Add",
-                    style: TextStyle(color: primaryColor),
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

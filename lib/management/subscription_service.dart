@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 class SubscriptionService {
@@ -24,10 +26,21 @@ class SubscriptionService {
   }
 
   Future<void> buy() async {
-    final product = products.firstWhere((p) => p.id == productId);
+    print("BUY CALLED");
+
+    if (products.isEmpty) {
+      print("No products loaded from App Store");
+      return;
+    }
+
+    final product = products.firstWhere(
+      (p) => p.id == productId,
+      orElse: () => throw Exception("Product not found"),
+    );
 
     final purchaseParam = PurchaseParam(productDetails: product);
 
+    print("Launching purchase sheet...");
     await _iap.buyNonConsumable(purchaseParam: purchaseParam);
   }
 

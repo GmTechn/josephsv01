@@ -36,6 +36,10 @@
 	<string>We use notifications to remind you about tasks.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone for speech-to-text task creation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition to convert your speech into text.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 	<key>NSAllowsArbitraryLoads</key>

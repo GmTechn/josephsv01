@@ -37,6 +37,10 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_native_timezone: ^2.0.0
 
+  #Voice recording (speech to text)
+  speech_to_text: ^6.6.2
+  in_app_purchase: ^3.1.13
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -34,12 +34,18 @@ class _SetUpProfileState extends State<SetUpProfile> {
   File? _profileImage;
   bool _saving = false;
 
+  @override
+  void dispose() {
+    fnameController.dispose();
+    lnameController.dispose();
+    super.dispose();
+  }
+
   // ----------------------------
   // IMAGE PICK ENTRY POINT
   // ----------------------------
   Future<void> _onChangePhoto() async {
     if (!kIsWeb && Platform.isMacOS) {
-      // macOS → open file picker directly
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
@@ -52,7 +58,6 @@ class _SetUpProfileState extends State<SetUpProfile> {
       return;
     }
 
-    // Mobile → bottom sheet
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -112,13 +117,21 @@ class _SetUpProfileState extends State<SetUpProfile> {
 
   Future<void> _saveProfile() async {
     if (_saving) return;
+
     setState(() => _saving = true);
 
     try {
       final fname = fnameController.text.trim();
       final lname = lnameController.text.trim();
 
-      if (fname.isEmpty || lname.isEmpty) return;
+      if (fname.isEmpty || lname.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Please enter first & last name.")),
+          );
+        }
+        return; // finally va remettre _saving = false
+      }
 
       String photoPath = '';
       if (_profileImage != null) {
@@ -132,7 +145,14 @@ class _SetUpProfileState extends State<SetUpProfile> {
       );
 
       final prefs = await SharedPreferences.getInstance();
+
+      // Tu l’as déjà dans onboarding, mais ça ne fait pas de mal
       await prefs.setBool('hasSeenOnboarding', true);
+
+      // ✅ Le flag qui empêche de revoir onboarding/profile
+      await prefs.setBool('hasCompletedProfile', true);
+
+      // Optionnel (garde si tu l’utilises ailleurs)
       await prefs.setBool('hasAccount', true);
 
       if (!mounted) return;

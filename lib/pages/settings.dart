@@ -226,6 +226,23 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           const SizedBox(height: 30),
+          _sectionTitle("SUBSCRIPTION"),
+          const SizedBox(height: 12),
+
+          _tile(
+            title: "Manage Subscription",
+            subtitle: "View or cancel your subscription",
+            onTap: () async {
+              final uri = Uri.parse(
+                "https://apps.apple.com/account/subscriptions",
+              );
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+
+          const SizedBox(height: 30),
           _sectionTitle("THEMES"),
           const SizedBox(height: 12),
           _tile(

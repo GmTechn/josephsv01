@@ -7,7 +7,9 @@ import 'package:josephs_vs_01/components/mynavbar.dart';
 import 'package:josephs_vs_01/components/taskscard.dart';
 import 'package:josephs_vs_01/main.dart';
 import 'package:josephs_vs_01/management/database.dart';
+import 'package:josephs_vs_01/management/subscription_service.dart';
 import 'package:josephs_vs_01/models/tasks.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class TasksPage extends StatefulWidget {
   const TasksPage({super.key, this.initialFilter = "All"});
@@ -26,11 +28,22 @@ class _TasksPageState extends State<TasksPage> {
   bool _selectionMode = false;
   final Set<int> _selectedTaskIds = {};
 
+  //vars for speech to text
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  //microphone key
+  final GlobalKey _micKey = GlobalKey();
+
+  //subscription variable
+  final SubscriptionService subscriptionService = SubscriptionService();
+
   @override
   void initState() {
     super.initState();
     selectedFilter = widget.initialFilter;
     _loadTasks();
+    _speech = stt.SpeechToText();
   }
 
   Future<void> _loadTasks() async {
@@ -166,6 +179,44 @@ class _TasksPageState extends State<TasksPage> {
 
     _toggleSelectionMode(false);
     await _loadTasks();
+  }
+
+  //-------- Listening to the speech to change to text ------//
+  //to know if we are still listening or not ---//
+
+  Future<void> _toggleListening(TextEditingController controller) async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'done') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) {
+          setState(() => _isListening = false);
+        },
+      );
+
+      if (available) {
+        setState(() => _isListening = true);
+
+        _speech.listen(
+          onResult: (result) {
+            setState(() {
+              controller.text = result.recognizedWords;
+            });
+          },
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
+  //------- Speech to Text subcription -----//
+  Future<bool> _canUseVoiceFeature() async {
+    return subscriptionService.isSubscribed;
   }
 
   // ---------------- UI ----------------
@@ -341,6 +392,85 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
+  //----- Show start trial dialog ----///
+  void _showUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text(
+          "Unlock Voice",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          "Start your 7-day free trial.\n\nThen \$2.99/month.",
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Not now"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await subscriptionService.buy();
+            },
+            child: const Text(
+              "Start Trial",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  //----- show tooltip ----//
+  void _showDoneTooltip(BuildContext context, GlobalKey key) {
+    final overlay = Overlay.of(context);
+    final renderBox = key.currentContext!.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+
+    late OverlayEntry entry;
+
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: position.dx + size.width / 2 - 40,
+        top: position.dy - 40,
+        child: Material(
+          color: Colors.transparent,
+          child: AnimatedOpacity(
+            opacity: 1,
+            duration: const Duration(milliseconds: 150),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                "Done",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+
+    Future.delayed(const Duration(milliseconds: 900), () {
+      entry.remove();
+    });
+  }
+
+  //----- Add create or edit task ----///
   void _showCreateOrEditTaskDialog({Task? task}) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -372,171 +502,262 @@ class _TasksPageState extends State<TasksPage> {
     showDialog(
       context: context,
       builder: (_) {
-        return AlertDialog(
-          backgroundColor: scheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            isEdit ? "Edit Task" : "Create Task",
-            style: TextStyle(color: scheme.onSurface),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // STATUS
-                DropdownButtonFormField<String>(
-                  value: status,
-                  dropdownColor: scheme.surface,
-                  style: TextStyle(color: scheme.onSurface),
-                  items: statusOptions
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (val) => setState(() => status = val ?? status),
-                  decoration: InputDecoration(
-                    labelText: "Status",
-                    labelStyle: TextStyle(color: scheme.onSurface),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: primaryColor.withOpacity(.5),
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: primaryColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // TITLE
-                TextField(
-                  controller: titleController,
-                  style: TextStyle(color: scheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: "Title",
-                    hintStyle: TextStyle(
-                      color: scheme.onSurface.withOpacity(.5),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: primaryColor.withOpacity(.5),
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: primaryColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // SUBTITLE
-                TextField(
-                  controller: subtitleController,
-                  maxLines: 3,
-                  style: TextStyle(color: scheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: "Subtitle (optional)",
-                    hintStyle: TextStyle(
-                      color: scheme.onSurface.withOpacity(.5),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: primaryColor.withOpacity(.5),
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: primaryColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // DATE
-                Row(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: scheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                isEdit ? "Edit Task" : "Create Task",
+                style: TextStyle(color: scheme.onSurface),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        selectedDate == null
-                            ? "No date chosen"
-                            : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
-                        style: TextStyle(color: scheme.onSurface),
+                    // STATUS
+                    DropdownButtonFormField<String>(
+                      value: status,
+                      dropdownColor: scheme.surface,
+                      style: TextStyle(color: scheme.onSurface),
+                      items: statusOptions
+                          .map(
+                            (s) => DropdownMenuItem(value: s, child: Text(s)),
+                          )
+                          .toList(),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          status = val ?? status;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        labelText: "Status",
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: primaryColor.withOpacity(.4),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate ?? DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
-                        );
 
-                        if (pickedDate != null) {
-                          setState(() => selectedDate = pickedDate);
-                        }
-                      },
-                      child: Text(
-                        "Select Date",
-                        style: TextStyle(color: primaryColor),
+                    const SizedBox(height: 16),
+
+                    // TITLE
+                    TextField(
+                      controller: titleController,
+                      style: TextStyle(color: scheme.onSurface),
+                      decoration: InputDecoration(
+                        labelText: "Title",
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: primaryColor.withOpacity(.4),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // SUBTITLE
+                    TextField(
+                      controller: subtitleController,
+                      maxLines: 3,
+                      style: TextStyle(color: scheme.onSurface),
+                      decoration: InputDecoration(
+                        labelText: "Subtitle (optional)",
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: primaryColor.withOpacity(.4),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // DATE + MIC
+                    Row(
+                      children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            final pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+
+                            if (pickedDate != null) {
+                              setDialogState(() {
+                                selectedDate = pickedDate;
+                              });
+                            }
+                          },
+                          child: Text(
+                            selectedDate == null
+                                ? "Select date"
+                                : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+                            style: TextStyle(
+                              color: primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+
+                        const Spacer(),
+
+                        InkWell(
+                          key: _micKey,
+                          customBorder: const CircleBorder(),
+                          onTap: () async {
+                            final allowed = await _canUseVoiceFeature();
+                            if (!allowed) {
+                              _showUpgradeDialog();
+                              return;
+                            }
+
+                            final wasListening = _isListening;
+
+                            await _toggleListening(subtitleController);
+
+                            setDialogState(() {});
+
+                            if (wasListening) {
+                              _showDoneTooltip(context, _micKey);
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _isListening
+                                  ? Colors.red.withOpacity(0.12)
+                                  : primaryColor.withOpacity(0.10),
+                            ),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 150),
+                              child: Icon(
+                                _isListening
+                                    ? CupertinoIcons.stop_fill
+                                    : CupertinoIcons.mic_fill,
+                                key: ValueKey(_isListening),
+                                size: 20,
+                                color: _isListening ? Colors.red : primaryColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: scheme.onSurface)),
-            ),
-            TextButton(
-              onPressed: () async {
-                final title = titleController.text.trim();
-
-                if (title.isEmpty || selectedDate == null) {
-                  return;
-                }
-
-                if (!isEdit) {
-                  await _db.createTask(
-                    title: title,
-                    subtitle: subtitleController.text.trim(),
-                    date: selectedDate!,
-                    status: status,
-                  );
-                } else {
-                  await _db.updateTask(
-                    id: task.id!,
-                    status: status,
-                    title: title,
-                    subtitle: subtitleController.text.trim(),
-                    date: selectedDate!,
-                    startTime: task.startTime,
-                    endTime: task.endTime,
-                  );
-                }
-
-                Navigator.pop(context);
-                await _loadTasks();
-              },
-              child: Text(
-                isEdit ? "Save" : "Add",
-                style: TextStyle(color: primaryColor),
               ),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    if (_isListening) {
+                      _speech.stop();
+                      _isListening = false;
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final title = titleController.text.trim();
+
+                    if (title.isEmpty || selectedDate == null) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          title: const Text(
+                            "Missing information",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          content: const Text(
+                            "Please enter a title and select a date before continuing.",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("OK"),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (_isListening) {
+                      _speech.stop();
+                      _isListening = false;
+                    }
+
+                    if (!isEdit) {
+                      await _db.createTask(
+                        title: title,
+                        subtitle: subtitleController.text.trim(),
+                        date: selectedDate!,
+                        status: status,
+                      );
+                    } else {
+                      await _db.updateTask(
+                        id: task.id!,
+                        status: status,
+                        title: title,
+                        subtitle: subtitleController.text.trim(),
+                        date: selectedDate!,
+                        startTime: task.startTime,
+                        endTime: task.endTime,
+                      );
+                    }
+
+                    Navigator.pop(context);
+                    await _loadTasks();
+                  },
+                  child: Text(
+                    isEdit ? "Save" : "Add",
+                    style: TextStyle(color: primaryColor),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );

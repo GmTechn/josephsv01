@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:josephs_vs_01/pages/dashboard.dart';
 import 'package:josephs_vs_01/pages/onboarding.dart';
+import 'package:josephs_vs_01/pages/profilesetup.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage();
@@ -29,24 +30,39 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
 
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+    final hasCompletedProfile = prefs.getBool('hasCompletedProfile') ?? false;
 
     if (!mounted) return;
 
-    if (hasSeenOnboarding) {
+    // ✅ Si profil terminé -> Dashboard direct (plus jamais onboarding/splash pages)
+    if (hasCompletedProfile) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const Dashboard()),
       );
-    } else {
+      return;
+    }
+
+    // ✅ Si onboarding déjà fait mais profil pas terminé -> Profile setup
+    if (hasSeenOnboarding) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const OnboardingPage()),
+        MaterialPageRoute(builder: (_) => const SetUpProfile()),
       );
+      return;
     }
+
+    // ✅ Sinon -> Onboarding
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const OnboardingPage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Tu as dit: ces pages restent en "original theme"
+    // Donc on laisse tes couleurs fixes ici.
     return Scaffold(
       body: Center(
         child: Column(

@@ -399,47 +399,74 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   //----- Show start trial dialog ----///
-  void _showUpgradeDialog() {
-    final scheme = Theme.of(context).colorScheme;
-    final isOriginal =
-        Theme.of(context).extension<AppThemeKey>()?.key == "original";
+  // void _showUpgradeDialog() {
+  //   final scheme = Theme.of(context).colorScheme;
+  //   final isOriginal =
+  //       Theme.of(context).extension<AppThemeKey>()?.key == "original";
 
-    final textColor = isOriginal ? const Color(0xff050c20) : scheme.onSurface;
+  //   final textColor = isOriginal ? const Color(0xff050c20) : scheme.onSurface;
+
+  //   showDialog(
+  //     context: context,
+  //     builder: (_) => AlertDialog(
+  //       backgroundColor: scheme.surface,
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  //       title: Text(
+  //         "Unlock Voice",
+  //         style: TextStyle(
+  //           fontSize: 16,
+  //           fontWeight: FontWeight.bold,
+  //           color: textColor,
+  //         ),
+  //       ),
+  //       content: Text(
+  //         "Start your 7-day free trial.\n\nThen \$2.99/month.",
+  //         style: TextStyle(fontSize: 14, color: textColor),
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: Text("Not now", style: TextStyle(color: textColor)),
+  //         ),
+  //         TextButton(
+  //           onPressed: () async {
+  //             Navigator.pop(context);
+  //             await subscriptionService.buy();
+  //           },
+  //           child: Text(
+  //             "Start Trial",
+  //             style: TextStyle(
+  //               fontWeight: FontWeight.bold,
+  //               color: isOriginal ? const Color(0xff050c20) : scheme.primary,
+  //             ),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  //------ Show coming soon dialog ----//
+  void _showComingSoonDialog() {
+    final scheme = Theme.of(context).colorScheme;
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: scheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          "Unlock Voice",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
+        title: const Text(
+          "Voice Feature",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        content: Text(
-          "Start your 7-day free trial.\n\nThen \$2.99/month.",
-          style: TextStyle(fontSize: 14, color: textColor),
+        content: const Text(
+          "This feature is coming in the next update. Stay tuned!",
+          style: TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Not now", style: TextStyle(color: textColor)),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await subscriptionService.buy();
-            },
-            child: Text(
-              "Start Trial",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isOriginal ? const Color(0xff050c20) : scheme.primary,
-              ),
-            ),
+            child: const Text("OK"),
           ),
         ],
       ),
@@ -656,7 +683,7 @@ class _TasksPageState extends State<TasksPage> {
                           onTap: () async {
                             final allowed = await _canUseVoiceFeature();
                             if (!allowed) {
-                              _showUpgradeDialog();
+                              _showComingSoonDialog();
                               return;
                             }
 
@@ -670,27 +697,60 @@ class _TasksPageState extends State<TasksPage> {
                               _showDoneTooltip(context, _micKey);
                             }
                           },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _isListening
-                                  ? Colors.red.withOpacity(0.12)
-                                  : primaryColor.withOpacity(0.10),
-                            ),
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 150),
-                              child: Icon(
-                                _isListening
-                                    ? CupertinoIcons.stop_fill
-                                    : CupertinoIcons.mic_fill,
-                                key: ValueKey(_isListening),
-                                size: 20,
-                                color: _isListening ? Colors.red : primaryColor,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                CupertinoIcons.mic_fill,
+                                size: 30,
+                                color: scheme.primary,
                               ),
-                            ),
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    "Soon",
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+
+                          // AnimatedContainer(
+                          //   duration: const Duration(milliseconds: 200),
+                          //   padding: const EdgeInsets.all(14),
+                          //   decoration: BoxDecoration(
+                          //     shape: BoxShape.circle,
+                          //     color: _isListening
+                          //         ? Colors.red.withOpacity(0.12)
+                          //         : primaryColor.withOpacity(0.10),
+                          //   ),
+                          //   child: AnimatedSwitcher(
+                          //     duration: const Duration(milliseconds: 150),
+                          //     child: Icon(
+                          //       _isListening
+                          //           ? CupertinoIcons.stop_fill
+                          //           : CupertinoIcons.mic_fill,
+                          //       key: ValueKey(_isListening),
+                          //       size: 20,
+                          //       color: _isListening ? Colors.red : primaryColor,
+                          //     ),
+                          //   ),
+                          // ),
                         ),
                       ],
                     ),

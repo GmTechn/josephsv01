@@ -344,7 +344,13 @@ class _TasksPageState extends State<TasksPage> {
   // BOTTOM SHEET OPTIONS (tap on card)
   // ----------------------------
   void _showTaskOptions(Task task) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+
+    final iconColor = isOriginal ? const Color(0xff050c20) : scheme.primary;
+    final textColor = isOriginal ? const Color(0xff050c20) : scheme.onSurface;
 
     showModalBottomSheet(
       context: context,
@@ -352,6 +358,7 @@ class _TasksPageState extends State<TasksPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+
       builder: (_) {
         return SafeArea(
           child: Wrap(
@@ -359,14 +366,14 @@ class _TasksPageState extends State<TasksPage> {
               ListTile(
                 leading: Icon(
                   CupertinoIcons.check_mark_circled_solid,
-                  color: scheme.primary,
+                  color: iconColor,
                 ),
-                title: Text(
-                  "Mark as Done",
-                  style: TextStyle(color: scheme.onSurface),
-                ),
+
+                title: Text("Mark as Done", style: TextStyle(color: textColor)),
+
                 onTap: () async {
                   Navigator.pop(context);
+
                   await _db.updateTask(
                     id: task.id!,
                     status: "Done",
@@ -376,20 +383,22 @@ class _TasksPageState extends State<TasksPage> {
                     startTime: task.startTime,
                     endTime: task.endTime,
                   );
+
                   await _loadTasks();
                 },
               ),
+
               ListTile(
-                leading: Icon(CupertinoIcons.pencil, color: scheme.primary),
-                title: Text(
-                  "Edit Task",
-                  style: TextStyle(color: scheme.onSurface),
-                ),
+                leading: Icon(CupertinoIcons.pencil, color: iconColor),
+
+                title: Text("Edit Task", style: TextStyle(color: textColor)),
+
                 onTap: () {
                   Navigator.pop(context);
                   _showCreateOrEditTaskDialog(task: task);
                 },
               ),
+
               const SizedBox(height: 10),
             ],
           ),
@@ -448,25 +457,46 @@ class _TasksPageState extends State<TasksPage> {
 
   //------ Show coming soon dialog ----//
   void _showComingSoonDialog() {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+
+    final Color textColor = isOriginal
+        ? const Color(0xff050c20)
+        : scheme.onSurface;
+
+    final Color primaryColor = isOriginal
+        ? const Color(0xff050c20)
+        : scheme.primary;
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: scheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           "Voice Feature",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: textColor,
+          ),
         ),
-        content: const Text(
+        content: Text(
           "This feature is coming in the next update. Stay tuned!",
-          style: TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: 14, color: textColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
+            child: Text(
+              "OK",
+              style: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -703,7 +733,7 @@ class _TasksPageState extends State<TasksPage> {
                               Icon(
                                 CupertinoIcons.mic_fill,
                                 size: 30,
-                                color: scheme.primary,
+                                color: primaryColor,
                               ),
                               Positioned(
                                 top: 0,
@@ -729,29 +759,29 @@ class _TasksPageState extends State<TasksPage> {
                               ),
                             ],
                           ),
-
-                          // AnimatedContainer(
-                          //   duration: const Duration(milliseconds: 200),
-                          //   padding: const EdgeInsets.all(14),
-                          //   decoration: BoxDecoration(
-                          //     shape: BoxShape.circle,
-                          //     color: _isListening
-                          //         ? Colors.red.withOpacity(0.12)
-                          //         : primaryColor.withOpacity(0.10),
-                          //   ),
-                          //   child: AnimatedSwitcher(
-                          //     duration: const Duration(milliseconds: 150),
-                          //     child: Icon(
-                          //       _isListening
-                          //           ? CupertinoIcons.stop_fill
-                          //           : CupertinoIcons.mic_fill,
-                          //       key: ValueKey(_isListening),
-                          //       size: 20,
-                          //       color: _isListening ? Colors.red : primaryColor,
-                          //     ),
-                          //   ),
-                          // ),
                         ),
+
+                        // AnimatedContainer(
+                        //   duration: const Duration(milliseconds: 200),
+                        //   padding: const EdgeInsets.all(14),
+                        //   decoration: BoxDecoration(
+                        //     shape: BoxShape.circle,
+                        //     color: _isListening
+                        //         ? Colors.red.withOpacity(0.12)
+                        //         : primaryColor.withOpacity(0.10),
+                        //   ),
+                        //   child: AnimatedSwitcher(
+                        //     duration: const Duration(milliseconds: 150),
+                        //     child: Icon(
+                        //       _isListening
+                        //           ? CupertinoIcons.stop_fill
+                        //           : CupertinoIcons.mic_fill,
+                        //       key: ValueKey(_isListening),
+                        //       size: 20,
+                        //       color: _isListening ? Colors.red : primaryColor,
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ],

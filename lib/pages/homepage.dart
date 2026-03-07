@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, use_key_in_widget_constructors
+// ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
@@ -10,7 +10,7 @@ import 'package:josephs_vs_01/pages/onboarding.dart';
 import 'package:josephs_vs_01/pages/profilesetup.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage();
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -24,7 +24,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _start() async {
-    // Splash delay
     await Future.delayed(const Duration(seconds: 2));
 
     final prefs = await SharedPreferences.getInstance();
@@ -34,7 +33,6 @@ class _HomePageState extends State<HomePage> {
 
     if (!mounted) return;
 
-    // ✅ Si profil terminé -> Dashboard direct (plus jamais onboarding/splash pages)
     if (hasCompletedProfile) {
       Navigator.pushReplacement(
         context,
@@ -43,7 +41,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // ✅ Si onboarding déjà fait mais profil pas terminé -> Profile setup
     if (hasSeenOnboarding) {
       Navigator.pushReplacement(
         context,
@@ -52,7 +49,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // ✅ Sinon -> Onboarding
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const OnboardingPage()),
@@ -61,20 +57,16 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Tu as dit: ces pages restent en "original theme"
-    // Donc on laisse tes couleurs fixes ici.
-    return Scaffold(
+    return const Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              CupertinoIcons.book_fill,
-              color: Color(0xff050c20),
-              size: 64,
-            ),
-            const SizedBox(height: 20),
-            const Text(
+            Icon(CupertinoIcons.book_fill, color: Color(0xff050c20), size: 64),
+
+            SizedBox(height: 20),
+
+            Text(
               "J O S E P H ' S",
               style: TextStyle(
                 fontFamily: 'Abel',
@@ -82,18 +74,18 @@ class _HomePageState extends State<HomePage> {
                 fontSize: 38,
                 color: Color(0xff050c20),
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+
+            SizedBox(height: 16),
+
             Text(
-              'Welcome to your personal task manager!',
+              "Welcome to your personal task manager!",
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
+                color: Colors.grey,
                 fontSize: 14,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

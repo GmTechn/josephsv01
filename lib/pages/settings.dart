@@ -129,8 +129,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
               await _db.resetDb();
               await _notifs.cancelAll();
+
               final prefs = await SharedPreferences.getInstance();
               await prefs.clear();
+
+              /// Reset theme to original
+              MyApp.of(context).changeTheme("original");
 
               Navigator.pushAndRemoveUntil(
                 context,

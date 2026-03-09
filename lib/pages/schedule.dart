@@ -204,6 +204,15 @@ class _SchedulePageState extends State<SchedulePage> {
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setStateSheet) {
+            final theme = Theme.of(context);
+            final scheme = theme.colorScheme;
+
+            final isOriginal =
+                theme.extension<AppThemeKey>()?.key == "original";
+
+            final primaryColor = isOriginal
+                ? const Color(0xff050c20)
+                : scheme.primary;
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -277,9 +286,12 @@ class _SchedulePageState extends State<SchedulePage> {
                           Navigator.pop(context);
                         }
                       },
-                      child: const Text(
+                      child: Text(
                         "Done",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
                       ),
                     ),
                   ],

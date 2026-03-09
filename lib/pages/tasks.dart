@@ -681,11 +681,36 @@ class _TasksPageState extends State<TasksPage> {
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           onPressed: () async {
+                            final theme = Theme.of(context);
+                            final scheme = theme.colorScheme;
+
+                            final isOriginal =
+                                theme.extension<AppThemeKey>()?.key ==
+                                "original";
+
+                            final primaryColor = isOriginal
+                                ? const Color(0xff050c20)
+                                : scheme.primary;
+
                             final pickedDate = await showDatePicker(
                               context: context,
                               initialDate: selectedDate ?? DateTime.now(),
                               firstDate: DateTime(2020),
                               lastDate: DateTime(2100),
+
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: Theme.of(context).colorScheme
+                                        .copyWith(
+                                          primary: primaryColor, // selected day
+                                          onPrimary: Colors.white,
+                                          onSurface: scheme.onSurface,
+                                        ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
                             );
 
                             if (pickedDate != null) {

@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:josephs_vs_01/management/notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -13,10 +14,13 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ INIT TIMEZONE (FIX NOTIFICATION CRASH)
+  // timezone
   tz.initializeTimeZones();
   final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
   tz.setLocalLocation(tz.getLocation(timeZoneName));
+
+  // 🔴 INITIALISE LES NOTIFICATIONS
+  await NotificationServices.instance.initialize();
 
   final prefs = await SharedPreferences.getInstance();
   final savedTheme = prefs.getString('selected_theme') ?? 'original';

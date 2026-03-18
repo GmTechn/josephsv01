@@ -28,30 +28,28 @@ class _HomePageState extends State<HomePage> {
 
     final prefs = await SharedPreferences.getInstance();
 
-    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-    final hasCompletedProfile = prefs.getBool('hasCompletedProfile') ?? false;
+    final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+    final bool hasCompletedProfile =
+        prefs.getBool('hasCompletedProfile') ?? false;
+
+    debugPrint('hasSeenOnboarding: $hasSeenOnboarding');
+    debugPrint('hasCompletedProfile: $hasCompletedProfile');
 
     if (!mounted) return;
 
-    if (hasCompletedProfile) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const Dashboard()),
-      );
-      return;
-    }
+    Widget nextPage;
 
-    if (hasSeenOnboarding) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const SetUpProfile()),
-      );
-      return;
+    if (hasCompletedProfile) {
+      nextPage = const Dashboard();
+    } else if (hasSeenOnboarding) {
+      nextPage = const SetUpProfile();
+    } else {
+      nextPage = const OnboardingPage();
     }
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const OnboardingPage()),
+      MaterialPageRoute(builder: (_) => nextPage),
     );
   }
 
@@ -63,9 +61,7 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(CupertinoIcons.book_fill, color: Color(0xff050c20), size: 64),
-
             SizedBox(height: 20),
-
             Text(
               "J O S E P H ' S",
               style: TextStyle(
@@ -75,9 +71,7 @@ class _HomePageState extends State<HomePage> {
                 color: Color(0xff050c20),
               ),
             ),
-
             SizedBox(height: 16),
-
             Text(
               "Welcome to your personal task manager!",
               style: TextStyle(

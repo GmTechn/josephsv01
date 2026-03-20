@@ -38,6 +38,9 @@ class _TasksPageState extends State<TasksPage> {
   //subscription variable
   final SubscriptionService subscriptionService = SubscriptionService();
 
+  //seach variable
+  String _searchQuery = "";
+
   @override
   void initState() {
     super.initState();
@@ -53,8 +56,19 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   List<Task> get _filteredTasks {
-    if (selectedFilter == "All") return _tasks;
-    return _tasks.where((t) => (t.status).trim() == selectedFilter).toList();
+    List<Task> filtered = selectedFilter == "All"
+        ? _tasks
+        : _tasks.where((t) => t.status.trim() == selectedFilter).toList();
+
+    if (_searchQuery.trim().isEmpty) return filtered;
+
+    final q = _searchQuery.toLowerCase().trim();
+
+    return filtered.where((t) {
+      final title = t.title.toLowerCase();
+      final subtitle = t.subtitle.toLowerCase();
+      return title.contains(q) || subtitle.contains(q);
+    }).toList();
   }
 
   bool _isOriginal(BuildContext context) {
@@ -123,7 +137,26 @@ class _TasksPageState extends State<TasksPage> {
                     : _confirmDeleteSelected,
               ),
             ]
-          : null,
+          : [
+              IconButton(
+                icon: const Icon(CupertinoIcons.search),
+                onPressed: () async {
+                  final result = await showSearch<String>(
+                    context: context,
+                    delegate: TaskSearchDelegate(
+                      tasks: _tasks,
+                      initialQuery: _searchQuery,
+                    ),
+                  );
+
+                  if (result != null) {
+                    setState(() {
+                      _searchQuery = result;
+                    });
+                  }
+                },
+              ),
+            ],
     );
   }
 
@@ -898,6 +931,7 @@ class _TasksPageState extends State<TasksPage> {
 }
 
 class _EmptyTasksState extends StatelessWidget {
+  //when there's no task just send empty text
   const _EmptyTasksState();
 
   @override
@@ -922,5 +956,98 @@ class _EmptyTasksState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class TaskSearchDelegate extends SearchDelegate<String> {
+  final List<Task> tasks;
+
+  TaskSearchDelegate({required this.tasks, String initialQuery = ""}) {
+    query = initialQuery;
+  }
+
+  @override
+  String get searchFieldLabel => "Search tasks";
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      if (query.isNotEmpty)
+        IconButton(
+          icon: const Icon(CupertinoIcons.clear_circled_solid),
+          onPressed: () {
+            query = '';
+            showSuggestions(context);
+          },
+        ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(CupertinoIcons.back),
+      onPressed: () => close(context, query),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final results = _searchResults();
+
+    if (results.isEmpty) {
+      return const Center(child: Text("No matching tasks"));
+    }
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final task = results[index];
+        return ListTile(
+          title: Text(task.title),
+          subtitle: Text(task.subtitle),
+          trailing: Text(task.status),
+          onTap: () => close(context, query),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final results = _searchResults();
+
+    if (query.trim().isEmpty) {
+      return const Center(child: Text("Search by title or subtitle"));
+    }
+
+    if (results.isEmpty) {
+      return const Center(child: Text("No matching tasks"));
+    }
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final task = results[index];
+        return ListTile(
+          title: Text(task.title),
+          subtitle: Text(task.subtitle),
+          trailing: Text(task.status),
+          onTap: () {
+            query = task.title;
+            showResults(context);
+          },
+        );
+      },
+    );
+  }
+
+  List<Task> _searchResults() {
+    final q = query.toLowerCase().trim();
+
+    return tasks.where((task) {
+      return task.title.toLowerCase().contains(q) ||
+          task.subtitle.toLowerCase().contains(q);
+    }).toList();
   }
 }

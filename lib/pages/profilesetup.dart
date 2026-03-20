@@ -30,16 +30,17 @@ class _SetUpProfileState extends State<SetUpProfile> {
   final ImagePicker _picker = ImagePicker();
 
   File? _profileImage;
-
   bool _saving = false;
 
-  // ----------------------------
-  // PHOTO PICKER
-  // ----------------------------
+  static const Color _primaryColor = Color(0xff050c20);
+  static const Color _bgColor = Colors.white;
+  static const Color _textColor = Color(0xff050c20);
+  static const Color _borderColor = Color(0x33050c20);
 
   Future<void> _onChangePhoto() async {
     showModalBottomSheet(
       context: context,
+      backgroundColor: _bgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -48,8 +49,14 @@ class _SetUpProfileState extends State<SetUpProfile> {
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(CupertinoIcons.camera),
-                title: const Text("Camera"),
+                leading: const Icon(
+                  CupertinoIcons.camera,
+                  color: _primaryColor,
+                ),
+                title: const Text(
+                  "Camera",
+                  style: TextStyle(color: _textColor),
+                ),
                 onTap: () async {
                   Navigator.pop(context);
                   final file = await _pickAndCrop(ImageSource.camera);
@@ -61,8 +68,11 @@ class _SetUpProfileState extends State<SetUpProfile> {
                 },
               ),
               ListTile(
-                leading: const Icon(CupertinoIcons.photo),
-                title: const Text("Gallery"),
+                leading: const Icon(CupertinoIcons.photo, color: _primaryColor),
+                title: const Text(
+                  "Gallery",
+                  style: TextStyle(color: _textColor),
+                ),
                 onTap: () async {
                   Navigator.pop(context);
                   final file = await _pickAndCrop(ImageSource.gallery);
@@ -89,8 +99,15 @@ class _SetUpProfileState extends State<SetUpProfile> {
       sourcePath: picked.path,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       uiSettings: [
-        AndroidUiSettings(lockAspectRatio: true),
-        IOSUiSettings(aspectRatioLockEnabled: true),
+        AndroidUiSettings(
+          lockAspectRatio: true,
+          toolbarTitle: 'Crop Photo',
+          toolbarColor: _primaryColor,
+          toolbarWidgetColor: Colors.white,
+          statusBarColor: _primaryColor,
+          backgroundColor: Colors.white,
+        ),
+        IOSUiSettings(aspectRatioLockEnabled: true, title: 'Crop Photo'),
       ],
     );
 
@@ -101,19 +118,12 @@ class _SetUpProfileState extends State<SetUpProfile> {
 
   Future<String> _persistImage(File file) async {
     final dir = await getApplicationDocumentsDirectory();
-
     final path = "${dir.path}/pp_${DateTime.now().millisecondsSinceEpoch}.jpg";
-
     final saved = File(path);
 
     await saved.writeAsBytes(await file.readAsBytes(), flush: true);
-
     return saved.path;
   }
-
-  // ----------------------------
-  // SAVE PROFILE
-  // ----------------------------
 
   Future<void> _saveProfile() async {
     if (_saving) return;
@@ -129,6 +139,36 @@ class _SetUpProfileState extends State<SetUpProfile> {
       setState(() {
         _saving = false;
       });
+
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: _bgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Missing information",
+            style: TextStyle(color: _textColor, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            "Please enter your first name and last name.",
+            style: TextStyle(color: _textColor),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: _primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
       return;
     }
 
@@ -141,7 +181,6 @@ class _SetUpProfileState extends State<SetUpProfile> {
     await _db.updateLocalUser(fname: fname, lname: lname, photoPath: photoPath);
 
     final prefs = await SharedPreferences.getInstance();
-
     await prefs.setBool('hasSeenOnboarding', true);
     await prefs.setBool('hasCompletedProfile', true);
 
@@ -153,55 +192,124 @@ class _SetUpProfileState extends State<SetUpProfile> {
     );
   }
 
-  // ----------------------------
-  // UI
-  // ----------------------------
+  @override
+  void dispose() {
+    fnameController.dispose();
+    lnameController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Profile Setup")),
-
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-
-        child: Column(
-          children: [
-            /// PHOTO
-            GestureDetector(
-              onTap: _onChangePhoto,
-              child: CircleAvatar(
-                radius: 60,
-                backgroundImage: _profileImage != null
-                    ? FileImage(_profileImage!)
-                    : null,
-                child: _profileImage == null
-                    ? const Icon(CupertinoIcons.camera, size: 30)
-                    : null,
+    return Theme(
+      data: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: _bgColor,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: _bgColor,
+          foregroundColor: _textColor,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: _bgColor,
+          surfaceTintColor: Colors.transparent,
+        ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: _bgColor,
+          surfaceTintColor: Colors.transparent,
+        ),
+        colorScheme: const ColorScheme.light(
+          primary: _primaryColor,
+          surface: _bgColor,
+          onSurface: _textColor,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: _bgColor,
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text(
+            "Profile Setup",
+            style: TextStyle(color: _textColor, fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: _onChangePhoto,
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: const Color(0xfff4f4f4),
+                  backgroundImage: _profileImage != null
+                      ? FileImage(_profileImage!)
+                      : null,
+                  child: _profileImage == null
+                      ? const Icon(
+                          CupertinoIcons.camera,
+                          size: 30,
+                          color: _primaryColor,
+                        )
+                      : null,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 30),
+              const SizedBox(height: 14),
 
-            /// FIRST NAME
-            Mytextformfield(
-              controller: fnameController,
-              hintText: "First Name",
-            ),
+              const Text(
+                "Add a profile photo",
+                style: TextStyle(
+                  color: _textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 30),
 
-            /// LAST NAME
-            Mytextformfield(controller: lnameController, hintText: "Last Name"),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  inputDecorationTheme: InputDecorationTheme(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintStyle: const TextStyle(color: Colors.black54),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _borderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _primaryColor),
+                    ),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Mytextformfield(
+                      controller: fnameController,
+                      hintText: "First Name",
+                    ),
 
-            const SizedBox(height: 30),
+                    const SizedBox(height: 20),
 
-            /// SAVE BUTTON
-            MyButton(
-              text: _saving ? "Saving..." : "Save Profile",
-              onPressed: _saveProfile,
-            ),
-          ],
+                    Mytextformfield(
+                      controller: lnameController,
+                      hintText: "Last Name",
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              MyButton(
+                text: _saving ? "Saving..." : "Save Profile",
+                onPressed: _saveProfile,
+              ),
+            ],
+          ),
         ),
       ),
     );

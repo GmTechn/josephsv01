@@ -549,7 +549,7 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   //----- Add create or edit task ----///
-  void _showCreateOrEditTaskDialog({Task? task}) {
+  Future<void> _showCreateOrEditTaskDialog({Task? task}) async {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -577,345 +577,318 @@ class _TasksPageState extends State<TasksPage> {
       status = statusOptions.first;
     }
 
-    showDialog(
+    await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: scheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              title: Text(
-                isEdit ? "Edit Task" : "Create Task",
-                style: TextStyle(color: scheme.onSurface),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // STATUS
-                    DropdownButtonFormField<String>(
-                      value: status,
-                      dropdownColor: scheme.surface,
-                      style: TextStyle(color: scheme.onSurface),
-                      items: statusOptions
-                          .map(
-                            (s) => DropdownMenuItem(value: s, child: Text(s)),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        setDialogState(() {
-                          status = val ?? status;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: "Status",
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: primaryColor.withOpacity(.4),
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// HANDLE
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
-                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                    // TITLE
-                    TextField(
-                      controller: titleController,
-                      style: TextStyle(color: scheme.onSurface),
-                      decoration: InputDecoration(
-                        labelText: "Title",
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: primaryColor.withOpacity(.4),
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
-                          borderRadius: BorderRadius.circular(12),
+                      /// TITLE
+                      Text(
+                        isEdit ? "Edit Task" : "Create Task",
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                    // SUBTITLE
-                    TextField(
-                      controller: subtitleController,
-                      maxLines: 3,
-                      style: TextStyle(color: scheme.onSurface),
-                      decoration: InputDecoration(
-                        labelText: "Subtitle (optional)",
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: primaryColor.withOpacity(.4),
+                      /// STATUS
+                      DropdownButtonFormField<String>(
+                        value: status,
+                        dropdownColor: scheme.surface,
+                        style: TextStyle(color: scheme.onSurface),
+                        items: statusOptions
+                            .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            status = val ?? status;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          labelText: "Status",
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: primaryColor.withOpacity(.4),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
-                          borderRadius: BorderRadius.circular(12),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
-                    // DATE + MIC
-                    Row(
-                      children: [
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(0, 0),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      /// TITLE INPUT
+                      TextField(
+                        controller: titleController,
+                        style: TextStyle(color: scheme.onSurface),
+                        decoration: InputDecoration(
+                          labelText: "Title",
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: primaryColor.withOpacity(.4),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          onPressed: () async {
-                            final theme = Theme.of(context);
-                            final scheme = theme.colorScheme;
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
 
-                            final isOriginal =
-                                theme.extension<AppThemeKey>()?.key ==
-                                "original";
+                      const SizedBox(height: 16),
 
-                            final primaryColor = isOriginal
-                                ? const Color(0xff050c20)
-                                : scheme.primary;
+                      /// SUBTITLE
+                      TextField(
+                        controller: subtitleController,
+                        maxLines: 3,
+                        style: TextStyle(color: scheme.onSurface),
+                        decoration: InputDecoration(
+                          labelText: "Subtitle (optional)",
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: primaryColor.withOpacity(.4),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
 
-                            final pickedDate = await showDatePicker(
-                              context: context,
-                              initialDate: selectedDate ?? DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2100),
+                      const SizedBox(height: 16),
 
-                              builder: (context, child) {
-                                return Theme(
-                                  data: Theme.of(context).copyWith(
-                                    colorScheme: Theme.of(context).colorScheme
-                                        .copyWith(
-                                          primary: primaryColor, // selected day
-                                          onPrimary: Colors.white,
-                                          onSurface: scheme.onSurface,
-                                        ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
+                      /// DATE + MIC
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              final theme = Theme.of(context);
+                              final scheme = theme.colorScheme;
 
-                            if (pickedDate != null) {
-                              setDialogState(() {
-                                selectedDate = pickedDate;
-                              });
-                            }
-                          },
-                          child: Text(
-                            selectedDate == null
-                                ? "Select date"
-                                : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
-                            style: TextStyle(
+                              final isOriginal =
+                                  theme.extension<AppThemeKey>()?.key ==
+                                  "original";
+
+                              final primary = isOriginal
+                                  ? const Color(0xff050c20)
+                                  : scheme.primary;
+
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2100),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: Theme.of(context).colorScheme
+                                          .copyWith(
+                                            primary: primary,
+                                            onPrimary: Colors.white,
+                                            onSurface: scheme.onSurface,
+                                          ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+
+                              if (pickedDate != null) {
+                                setDialogState(() {
+                                  selectedDate = pickedDate;
+                                });
+                              }
+                            },
+                            icon: Icon(
+                              CupertinoIcons.calendar,
                               color: primaryColor,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
 
-                        const Spacer(),
-
-                        InkWell(
-                          key: _micKey,
-                          customBorder: const CircleBorder(),
-                          onTap: () async {
-                            final allowed = await _canUseVoiceFeature();
-                            if (!allowed) {
-                              _showComingSoonDialog();
-                              return;
-                            }
-
-                            final wasListening = _isListening;
-
-                            await _toggleListening(subtitleController);
-
-                            setDialogState(() {});
-
-                            if (wasListening) {
-                              _showDoneTooltip(context, _micKey);
-                            }
-                          },
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Icon(
-                                CupertinoIcons.mic_fill,
-                                size: 30,
-                                color: primaryColor,
+                          Expanded(
+                            child: Text(
+                              selectedDate == null
+                                  ? "Select date"
+                                  : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+                              style: TextStyle(
+                                color: selectedDate == null
+                                    ? scheme.onSurface.withOpacity(0.6)
+                                    : primaryColor,
+                                fontWeight: FontWeight.w600,
                               ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    "Soon",
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          InkWell(
+                            key: _micKey,
+                            customBorder: const CircleBorder(),
+                            onTap: () async {
+                              final allowed = await _canUseVoiceFeature();
+                              if (!allowed) {
+                                _showComingSoonDialog();
+                                return;
+                              }
+
+                              final wasListening = _isListening;
+
+                              await _toggleListening(subtitleController);
+
+                              setDialogState(() {});
+
+                              if (wasListening) {
+                                _showDoneTooltip(context, _micKey);
+                              }
+                            },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.mic_fill,
+                                  size: 30,
+                                  color: primaryColor,
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      "Soon",
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
+                      ),
 
-                        // AnimatedContainer(
-                        //   duration: const Duration(milliseconds: 200),
-                        //   padding: const EdgeInsets.all(14),
-                        //   decoration: BoxDecoration(
-                        //     shape: BoxShape.circle,
-                        //     color: _isListening
-                        //         ? Colors.red.withOpacity(0.12)
-                        //         : primaryColor.withOpacity(0.10),
-                        //   ),
-                        //   child: AnimatedSwitcher(
-                        //     duration: const Duration(milliseconds: 150),
-                        //     child: Icon(
-                        //       _isListening
-                        //           ? CupertinoIcons.stop_fill
-                        //           : CupertinoIcons.mic_fill,
-                        //       key: ValueKey(_isListening),
-                        //       size: 20,
-                        //       color: _isListening ? Colors.red : primaryColor,
-                        //     ),
-                        //   ),
-                        // ),
-                      ],
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+
+                      /// ACTIONS
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              if (_isListening) {
+                                _speech.stop();
+                                _isListening = false;
+                              }
+                              Navigator.pop(context);
+                            },
+                            child: Text(
+                              "Cancel",
+                              style: TextStyle(color: scheme.onSurface),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final title = titleController.text.trim();
+
+                              if (title.isEmpty || selectedDate == null) {
+                                return;
+                              }
+
+                              if (_isListening) {
+                                _speech.stop();
+                                _isListening = false;
+                              }
+
+                              if (!isEdit) {
+                                await _db.createTask(
+                                  title: title,
+                                  subtitle: subtitleController.text.trim(),
+                                  date: selectedDate!,
+                                  status: status,
+                                );
+                              } else {
+                                await _db.updateTask(
+                                  id: task.id!,
+                                  status: status,
+                                  title: title,
+                                  subtitle: subtitleController.text.trim(),
+                                  date: selectedDate!,
+                                  startTime: task.startTime,
+                                  endTime: task.endTime,
+                                );
+                              }
+
+                              Navigator.pop(context);
+                              await _loadTasks();
+                            },
+                            child: Text(
+                              isEdit ? "Save" : "Add",
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    if (_isListening) {
-                      _speech.stop();
-                      _isListening = false;
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    "Cancel",
-                    style: TextStyle(color: scheme.onSurface),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final title = titleController.text.trim();
-
-                    if (title.isEmpty || selectedDate == null) {
-                      showDialog(
-                        context: context,
-                        builder: (_) {
-                          final scheme = Theme.of(context).colorScheme;
-                          final isOriginal =
-                              Theme.of(context).extension<AppThemeKey>()?.key ==
-                              "original";
-
-                          final textColor = isOriginal
-                              ? const Color(0xff050c20)
-                              : scheme.onSurface;
-
-                          return AlertDialog(
-                            backgroundColor: scheme.surface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            title: Text(
-                              "Missing information",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: textColor,
-                              ),
-                            ),
-                            content: Text(
-                              "Please enter a title and select a date before continuing.",
-                              style: TextStyle(fontSize: 14, color: textColor),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(
-                                  "OK",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: isOriginal
-                                        ? const Color(0xff050c20)
-                                        : scheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                      return;
-                    }
-
-                    if (_isListening) {
-                      _speech.stop();
-                      _isListening = false;
-                    }
-
-                    if (!isEdit) {
-                      await _db.createTask(
-                        title: title,
-                        subtitle: subtitleController.text.trim(),
-                        date: selectedDate!,
-                        status: status,
-                      );
-                    } else {
-                      await _db.updateTask(
-                        id: task.id!,
-                        status: status,
-                        title: title,
-                        subtitle: subtitleController.text.trim(),
-                        date: selectedDate!,
-                        startTime: task.startTime,
-                        endTime: task.endTime,
-                      );
-                    }
-
-                    Navigator.pop(context);
-                    await _loadTasks();
-                  },
-                  child: Text(
-                    isEdit ? "Save" : "Add",
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
             );
           },
         );

@@ -7,25 +7,45 @@ import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'pages/dashboard.dart';
 import 'pages/homepage.dart';
+import 'pages/onboarding.dart';
+import 'pages/profilesetup.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // timezone
+  // Timezone
   tz.initializeTimeZones();
   final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
   tz.setLocalLocation(tz.getLocation(timeZoneName));
 
-  // 🔴 INITIALISE LES NOTIFICATIONS
+  // Notifications
   await NotificationServices.instance.initialize();
 
   final prefs = await SharedPreferences.getInstance();
   final savedTheme = prefs.getString('selected_theme') ?? 'original';
 
-  runApp(MyApp(initialTheme: savedTheme));
+  final bool hasSeenSplash = prefs.getBool('hasSeenSplash') ?? false;
+  final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+  final bool hasCompletedProfile =
+      prefs.getBool('hasCompletedProfile') ?? false;
+
+  Widget firstPage;
+
+  if (!hasSeenSplash) {
+    firstPage = const HomePage();
+  } else if (!hasSeenOnboarding) {
+    firstPage = const OnboardingPage();
+  } else if (!hasCompletedProfile) {
+    firstPage = const SetUpProfile();
+  } else {
+    firstPage = const Dashboard();
+  }
+
+  runApp(MyApp(initialTheme: savedTheme, firstPage: firstPage));
 }
 
 @immutable
@@ -48,7 +68,9 @@ class AppThemeKey extends ThemeExtension<AppThemeKey> {
 
 class MyApp extends StatefulWidget {
   final String initialTheme;
-  const MyApp({super.key, required this.initialTheme});
+  final Widget firstPage;
+
+  const MyApp({super.key, required this.initialTheme, required this.firstPage});
 
   static MyAppState of(BuildContext context) =>
       context.findAncestorStateOfType<MyAppState>()!;
@@ -94,30 +116,23 @@ class MyAppState extends State<MyApp> {
     }
   }
 
-  // ================= LIGHT =================
-  // ================= LIGHT =================
   ThemeData _buildLightTheme() {
     final seed = _seedFromKey(_currentTheme);
 
-    // ===== ORIGINAL THEME =====
     if (_currentTheme == "original") {
       return ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-
-        // ✅ ONLY what you said you set:
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
           selectedItemColor: Color(0xFF050C20),
           unselectedItemColor: Colors.black54,
           type: BottomNavigationBarType.fixed,
         ),
-
         extensions: const [AppThemeKey("original")],
       );
     }
 
-    // ===== ALL OTHER LIGHT THEMES =====
     final scheme = ColorScheme.fromSeed(
       seedColor: seed!,
       brightness: Brightness.light,
@@ -142,12 +157,9 @@ class MyAppState extends State<MyApp> {
     );
   }
 
-  // ================= DARK =================
-  // ================= DARK =================
   ThemeData _buildDarkTheme() {
     final seed = _seedFromKey(_currentTheme) ?? const Color(0xFF050C20);
 
-    // ===== ORIGINAL DARK =====
     if (_currentTheme == "original") {
       return ThemeData(
         useMaterial3: true,
@@ -190,7 +202,7 @@ class MyAppState extends State<MyApp> {
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const HomePage(),
+      home: widget.firstPage,
     );
   }
 }

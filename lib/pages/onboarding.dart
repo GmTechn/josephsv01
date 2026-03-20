@@ -16,8 +16,14 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   Future<void> _handleNext() async {
     if (_currentPage == onboardingData.length - 1) {
+      // final prefs = await SharedPreferences.getInstance();
+      // await prefs.setBool('hasSeenOnboarding', true);
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasSeenOnboarding', true);
+      debugPrint(
+        'saved hasSeenOnboarding = ${prefs.getBool('hasSeenOnboarding')}',
+      );
 
       if (!mounted) return;
 

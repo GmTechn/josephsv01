@@ -5,9 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:josephs_vs_01/pages/dashboard.dart';
 import 'package:josephs_vs_01/pages/onboarding.dart';
-import 'package:josephs_vs_01/pages/profilesetup.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -27,29 +25,13 @@ class _HomePageState extends State<HomePage> {
     await Future.delayed(const Duration(seconds: 2));
 
     final prefs = await SharedPreferences.getInstance();
-
-    final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-    final bool hasCompletedProfile =
-        prefs.getBool('hasCompletedProfile') ?? false;
-
-    debugPrint('hasSeenOnboarding: $hasSeenOnboarding');
-    debugPrint('hasCompletedProfile: $hasCompletedProfile');
+    await prefs.setBool('hasSeenSplash', true);
 
     if (!mounted) return;
 
-    Widget nextPage;
-
-    if (hasCompletedProfile) {
-      nextPage = const Dashboard();
-    } else if (hasSeenOnboarding) {
-      nextPage = const SetUpProfile();
-    } else {
-      nextPage = const OnboardingPage();
-    }
-
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => nextPage),
+      MaterialPageRoute(builder: (_) => const OnboardingPage()),
     );
   }
 

@@ -30,6 +30,53 @@ class _SchedulePageState extends State<SchedulePage> {
   List<Task> _tasksForDay = [];
   bool _loading = false;
 
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  //saving date occurence
+  DateTime _occurrenceDateFor(Task task, DateTime selectedDate) {
+    return _dateOnly(selectedDate);
+  }
+
+  //calculating the number of occurence * 12 for the year
+
+  bool _shouldShowTaskOnDate(Task task, DateTime selectedDate) {
+    final taskDate = _dateOnly(task.date);
+    final targetDate = _dateOnly(selectedDate);
+
+    if (targetDate.isBefore(taskDate)) return false;
+
+    if (task.isRecurring != true) {
+      return _isSameDate(taskDate, targetDate);
+    }
+
+    final recurrence = (task.recurrenceType ?? '').toLowerCase();
+
+    switch (recurrence) {
+      case 'daily':
+        return !targetDate.isBefore(taskDate);
+
+      case 'weekly':
+        final diffDays = targetDate.difference(taskDate).inDays;
+        return diffDays >= 0 && diffDays % 7 == 0;
+
+      case 'monthly':
+        if (targetDate.day != taskDate.day) return false;
+
+        final monthDiff =
+            (targetDate.year - taskDate.year) * 12 +
+            (targetDate.month - taskDate.month);
+
+        return monthDiff >= 0;
+
+      default:
+        return _isSameDate(taskDate, targetDate);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,22 +107,29 @@ class _SchedulePageState extends State<SchedulePage> {
     setState(() => _loading = true);
 
     try {
-      final rows = await _db.getTasks(day: _selectedDate);
+      final allRows = await _db.getTasks();
+
+      final rows = allRows
+          .where((t) => _shouldShowTaskOnDate(t, _selectedDate))
+          .toList();
 
       rows.sort((a, b) {
-        final pa = _statusPriority(_computeStatus(a));
-        final pb = _statusPriority(_computeStatus(b));
+        final pa = _statusPriority(_computeStatusForDate(a, _selectedDate));
+        final pb = _statusPriority(_computeStatusForDate(b, _selectedDate));
         if (pa != pb) return pa.compareTo(pb);
 
         DateTime build(Task t) {
+          final baseDate = _occurrenceDateFor(t, _selectedDate);
+
           if (t.startTime == null || t.startTime!.trim().isEmpty) {
-            return DateTime(t.date.year, t.date.month, t.date.day);
+            return DateTime(baseDate.year, baseDate.month, baseDate.day);
           }
+
           final parsed = DateFormat.jm().parse(t.startTime!);
           return DateTime(
-            t.date.year,
-            t.date.month,
-            t.date.day,
+            baseDate.year,
+            baseDate.month,
+            baseDate.day,
             parsed.hour,
             parsed.minute,
           );
@@ -106,8 +160,8 @@ class _SchedulePageState extends State<SchedulePage> {
     }
   }
 
-  String _computeStatus(Task t) {
-    final raw = (t.status).toLowerCase();
+  String _computeStatusForDate(Task t, DateTime selectedDate) {
+    final raw = t.status.toLowerCase();
     if (raw == 'done') return 'done';
 
     final hasStart = t.startTime != null && t.startTime!.trim().isNotEmpty;
@@ -117,14 +171,15 @@ class _SchedulePageState extends State<SchedulePage> {
       return 'todo';
     }
 
+    final baseDate = _occurrenceDateFor(t, selectedDate);
     final now = DateTime.now();
 
     DateTime parse(String time) {
       final parsed = DateFormat.jm().parse(time);
       return DateTime(
-        t.date.year,
-        t.date.month,
-        t.date.day,
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
         parsed.hour,
         parsed.minute,
       );
@@ -423,7 +478,10 @@ class _SchedulePageState extends State<SchedulePage> {
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final t = _tasksForDay[index];
-                          final status = _computeStatus(t);
+                          final status = _computeStatusForDate(
+                            t,
+                            _selectedDate,
+                          );
 
                           return MyScheduleCard(
                             title: t.title,

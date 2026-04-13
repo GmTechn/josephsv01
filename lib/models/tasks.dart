@@ -7,6 +7,9 @@ class Task {
   final String? startTime;
   final String? endTime;
   final DateTime createdAt;
+  final bool isRecurring;
+  final String? recurrenceType;
+  final DateTime? recurrenceEndDate;
 
   Task({
     this.id,
@@ -17,6 +20,9 @@ class Task {
     this.startTime,
     this.endTime,
     DateTime? createdAt,
+    required this.isRecurring,
+    this.recurrenceType,
+    this.recurrenceEndDate,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -29,6 +35,9 @@ class Task {
       'startTime': startTime,
       'endTime': endTime,
       'createdAt': createdAt.toIso8601String(),
+      'isRecurring': isRecurring ? 1 : 0,
+      'recurrenceType': recurrenceType,
+      'recurrenceEndDate': recurrenceEndDate?.toIso8601String(),
     };
   }
 
@@ -42,6 +51,11 @@ class Task {
       startTime: map['startTime'],
       endTime: map['endTime'],
       createdAt: DateTime.parse(map['createdAt']),
+      isRecurring: (map['isRecurring'] ?? 0) == 1,
+      recurrenceType: map['recurrenceType'] as String?,
+      recurrenceEndDate: map['recurrenceEndDate'] != null
+          ? DateTime.parse(map['recurrenceEndDate'] as String)
+          : null,
     );
   }
 }

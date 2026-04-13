@@ -9,7 +9,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DatabaseManager {
   static const _dbName = 'josephs.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 3;
 
   static const _tableUsers = 'users';
   static const _tableTasks = 'tasks';
@@ -21,11 +21,9 @@ class DatabaseManager {
   Future<Database> get database async {
     if (_db != null) {
       try {
-        // ping simple pour vérifier si DB est encore ouverte
         await _db!.rawQuery('SELECT 1');
         return _db!;
       } catch (_) {
-        // DB fermée -> on la ré-ouvre
         _db = null;
       }
     }
@@ -64,6 +62,9 @@ class DatabaseManager {
         date TEXT NOT NULL,
         startTime TEXT,
         endTime TEXT,
+        isRecurring INTEGER NOT NULL DEFAULT 0,
+        recurrenceType TEXT,
+        recurrenceEndDate TEXT,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         FOREIGN KEY(userId) REFERENCES $_tableUsers(id) ON DELETE CASCADE
@@ -74,7 +75,6 @@ class DatabaseManager {
       'CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON $_tableTasks(userId, date);',
     );
 
-    // ensure local user exists
     await db.insert(_tableUsers, {
       'id': _localUserId,
       'fname': '',
@@ -108,10 +108,14 @@ class DatabaseManager {
           date TEXT NOT NULL,
           startTime TEXT,
           endTime TEXT,
+          isRecurring INTEGER NOT NULL DEFAULT 0,
+          recurrenceType TEXT,
+          recurrenceEndDate TEXT,
           createdAt TEXT NOT NULL,
           updatedAt TEXT NOT NULL
         );
       ''');
+
       await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON $_tableTasks(userId, date);',
       );
@@ -122,13 +126,13 @@ class DatabaseManager {
         db,
         _tableTasks,
         'createdAt',
-        'TEXT NOT NULL DEFAULT ""',
+        "TEXT NOT NULL DEFAULT ''",
       );
       await _ensureColumn(
         db,
         _tableTasks,
         'updatedAt',
-        'TEXT NOT NULL DEFAULT ""',
+        "TEXT NOT NULL DEFAULT ''",
       );
       await _ensureColumn(
         db,
@@ -142,6 +146,14 @@ class DatabaseManager {
         'status',
         "TEXT NOT NULL DEFAULT 'To do'",
       );
+      await _ensureColumn(
+        db,
+        _tableTasks,
+        'isRecurring',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      await _ensureColumn(db, _tableTasks, 'recurrenceType', 'TEXT');
+      await _ensureColumn(db, _tableTasks, 'recurrenceEndDate', 'TEXT');
     }
 
     await db.insert(_tableUsers, {
@@ -167,11 +179,9 @@ class DatabaseManager {
     }
   }
 
-  // DEV helper
   Future<void> resetDb() async {
     final path = join(await getDatabasesPath(), _dbName);
 
-    // close if opened
     if (_db != null) {
       await _db!.close();
       _db = null;
@@ -182,7 +192,6 @@ class DatabaseManager {
     }
   }
 
-  // USER
   Future<AppUser?> getLocalUser() async {
     final db = await database;
     final rows = await db.query(
@@ -224,7 +233,6 @@ class DatabaseManager {
     }
   }
 
-  // TASKS
   Future<int> createTask({
     required String title,
     required String subtitle,
@@ -232,6 +240,9 @@ class DatabaseManager {
     String status = 'To do',
     String? startTime,
     String? endTime,
+    bool isRecurring = false,
+    String? recurrenceType,
+    DateTime? recurrenceEndDate,
   }) async {
     final db = await database;
     final now = DateTime.now().toIso8601String();
@@ -244,6 +255,9 @@ class DatabaseManager {
       'date': date.toIso8601String(),
       'startTime': startTime,
       'endTime': endTime,
+      'isRecurring': isRecurring ? 1 : 0,
+      'recurrenceType': isRecurring ? recurrenceType : null,
+      'recurrenceEndDate': recurrenceEndDate?.toIso8601String(),
       'createdAt': now,
       'updatedAt': now,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
@@ -285,16 +299,26 @@ class DatabaseManager {
     DateTime? date,
     String? startTime,
     String? endTime,
+    bool? isRecurring,
+    String? recurrenceType,
+    DateTime? recurrenceEndDate,
   }) async {
     final db = await database;
 
     final data = <String, Object?>{
-      'status': ?status,
+      if (status != null) 'status': status,
       if (title != null) 'title': title.trim(),
       if (subtitle != null) 'subtitle': subtitle.trim(),
       if (date != null) 'date': date.toIso8601String(),
       'startTime': startTime,
       'endTime': endTime,
+      if (isRecurring != null) 'isRecurring': isRecurring ? 1 : 0,
+      if (isRecurring != null && isRecurring == false) 'recurrenceType': null,
+      if (isRecurring != null && isRecurring == false)
+        'recurrenceEndDate': null,
+      if (isRecurring == true) 'recurrenceType': recurrenceType,
+      if (isRecurring == true)
+        'recurrenceEndDate': recurrenceEndDate?.toIso8601String(),
       'updatedAt': DateTime.now().toIso8601String(),
     };
 

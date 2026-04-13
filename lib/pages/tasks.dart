@@ -39,7 +39,7 @@ class _TasksPageState extends State<TasksPage> {
   final SubscriptionService subscriptionService = SubscriptionService();
 
   //seach variable
-  String _searchQuery = "";
+  final String _searchQuery = "";
 
   @override
   void initState() {
@@ -141,7 +141,7 @@ class _TasksPageState extends State<TasksPage> {
               IconButton(
                 icon: const Icon(CupertinoIcons.search),
                 onPressed: () async {
-                  final result = await showSearch<String>(
+                  final Task? result = await showSearch<Task?>(
                     context: context,
                     delegate: TaskSearchDelegate(
                       tasks: _tasks,
@@ -150,9 +150,7 @@ class _TasksPageState extends State<TasksPage> {
                   );
 
                   if (result != null) {
-                    setState(() {
-                      _searchQuery = result;
-                    });
+                    _showTaskOptions(result);
                   }
                 },
               ),
@@ -601,6 +599,8 @@ class _TasksPageState extends State<TasksPage> {
     final bool isEdit = task != null;
 
     String status = task?.status ?? "To do";
+    bool isRecurring = task?.isRecurring ?? false;
+    String recurrenceType = task?.recurrenceType ?? "Daily";
 
     final List<String> statusOptions = isEdit
         ? ["To do", "In progress", "Done"]
@@ -635,7 +635,6 @@ class _TasksPageState extends State<TasksPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      /// HANDLE
                       Center(
                         child: Container(
                           width: 40,
@@ -649,7 +648,6 @@ class _TasksPageState extends State<TasksPage> {
 
                       const SizedBox(height: 20),
 
-                      /// TITLE
                       Text(
                         isEdit ? "Edit Task" : "Create Task",
                         style: TextStyle(
@@ -661,7 +659,6 @@ class _TasksPageState extends State<TasksPage> {
 
                       const SizedBox(height: 16),
 
-                      /// STATUS
                       DropdownButtonFormField<String>(
                         value: status,
                         dropdownColor: scheme.surface,
@@ -693,7 +690,6 @@ class _TasksPageState extends State<TasksPage> {
 
                       const SizedBox(height: 16),
 
-                      /// TITLE INPUT
                       TextField(
                         controller: titleController,
                         style: TextStyle(color: scheme.onSurface),
@@ -714,7 +710,6 @@ class _TasksPageState extends State<TasksPage> {
 
                       const SizedBox(height: 16),
 
-                      /// SUBTITLE
                       TextField(
                         controller: subtitleController,
                         maxLines: 3,
@@ -734,24 +729,76 @@ class _TasksPageState extends State<TasksPage> {
                         ),
                       ),
 
+                      const SizedBox(height: 12),
+
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: primaryColor,
+                        title: Text(
+                          "Recurring task",
+                          style: TextStyle(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        value: isRecurring,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isRecurring = val;
+                            if (!isRecurring) {
+                              recurrenceType = "Daily";
+                            }
+                          });
+                        },
+                      ),
+
+                      if (isRecurring) ...[
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: recurrenceType,
+                          dropdownColor: scheme.surface,
+                          style: TextStyle(color: scheme.onSurface),
+                          items: const [
+                            DropdownMenuItem(
+                              value: "Daily",
+                              child: Text("Daily"),
+                            ),
+                            DropdownMenuItem(
+                              value: "Weekly",
+                              child: Text("Weekly"),
+                            ),
+                            DropdownMenuItem(
+                              value: "Monthly",
+                              child: Text("Monthly"),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            setDialogState(() {
+                              recurrenceType = val ?? "Daily";
+                            });
+                          },
+                          decoration: InputDecoration(
+                            labelText: "Repeat",
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                color: primaryColor.withOpacity(.4),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 16),
 
-                      /// DATE + MIC
                       Row(
                         children: [
                           IconButton(
                             onPressed: () async {
-                              final theme = Theme.of(context);
-                              final scheme = theme.colorScheme;
-
-                              final isOriginal =
-                                  theme.extension<AppThemeKey>()?.key ==
-                                  "original";
-
-                              final primary = isOriginal
-                                  ? const Color(0xff050c20)
-                                  : scheme.primary;
-
                               final pickedDate = await showDatePicker(
                                 context: context,
                                 initialDate: selectedDate ?? DateTime.now(),
@@ -762,7 +809,7 @@ class _TasksPageState extends State<TasksPage> {
                                     data: Theme.of(context).copyWith(
                                       colorScheme: Theme.of(context).colorScheme
                                           .copyWith(
-                                            primary: primary,
+                                            primary: primaryColor,
                                             onPrimary: Colors.white,
                                             onSurface: scheme.onSurface,
                                           ),
@@ -787,7 +834,9 @@ class _TasksPageState extends State<TasksPage> {
                           Expanded(
                             child: Text(
                               selectedDate == null
-                                  ? "Select date"
+                                  ? (isRecurring
+                                        ? "Select start date"
+                                        : "Select date")
                                   : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
                               style: TextStyle(
                                 color: selectedDate == null
@@ -809,9 +858,7 @@ class _TasksPageState extends State<TasksPage> {
                               }
 
                               final wasListening = _isListening;
-
                               await _toggleListening(subtitleController);
-
                               setDialogState(() {});
 
                               if (wasListening) {
@@ -856,7 +903,6 @@ class _TasksPageState extends State<TasksPage> {
 
                       const SizedBox(height: 24),
 
-                      /// ACTIONS
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -878,6 +924,38 @@ class _TasksPageState extends State<TasksPage> {
                               final title = titleController.text.trim();
 
                               if (title.isEmpty || selectedDate == null) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    backgroundColor: scheme.surface,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    title: Text(
+                                      "Missing information",
+                                      style: TextStyle(
+                                        color: scheme.onSurface,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    content: Text(
+                                      "Please enter a title and select a date.",
+                                      style: TextStyle(color: scheme.onSurface),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: Text(
+                                          "OK",
+                                          style: TextStyle(
+                                            color: primaryColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
                                 return;
                               }
 
@@ -892,6 +970,10 @@ class _TasksPageState extends State<TasksPage> {
                                   subtitle: subtitleController.text.trim(),
                                   date: selectedDate!,
                                   status: status,
+                                  isRecurring: isRecurring,
+                                  recurrenceType: isRecurring
+                                      ? recurrenceType
+                                      : null,
                                 );
                               } else {
                                 await _db.updateTask(
@@ -902,6 +984,10 @@ class _TasksPageState extends State<TasksPage> {
                                   date: selectedDate!,
                                   startTime: task.startTime,
                                   endTime: task.endTime,
+                                  isRecurring: isRecurring,
+                                  recurrenceType: isRecurring
+                                      ? recurrenceType
+                                      : null,
                                 );
                               }
 
@@ -959,7 +1045,7 @@ class _EmptyTasksState extends StatelessWidget {
   }
 }
 
-class TaskSearchDelegate extends SearchDelegate<String> {
+class TaskSearchDelegate extends SearchDelegate<Task?> {
   final List<Task> tasks;
 
   TaskSearchDelegate({required this.tasks, String initialQuery = ""}) {
@@ -987,36 +1073,23 @@ class TaskSearchDelegate extends SearchDelegate<String> {
   Widget? buildLeading(BuildContext context) {
     return IconButton(
       icon: const Icon(CupertinoIcons.back),
-      onPressed: () => close(context, query),
+      onPressed: () => close(context, null),
     );
   }
 
   @override
   Widget buildResults(BuildContext context) {
     final results = _searchResults();
-
-    if (results.isEmpty) {
-      return const Center(child: Text("No matching tasks"));
-    }
-
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final task = results[index];
-        return ListTile(
-          title: Text(task.title),
-          subtitle: Text(task.subtitle),
-          trailing: Text(task.status),
-          onTap: () => close(context, query),
-        );
-      },
-    );
+    return _buildTaskCards(results);
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
     final results = _searchResults();
+    return _buildTaskCards(results);
+  }
 
+  Widget _buildTaskCards(List<Task> results) {
     if (query.trim().isEmpty) {
       return const Center(child: Text("Search by title or subtitle"));
     }
@@ -1026,17 +1099,22 @@ class TaskSearchDelegate extends SearchDelegate<String> {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: results.length,
       itemBuilder: (context, index) {
         final task = results[index];
-        return ListTile(
-          title: Text(task.title),
-          subtitle: Text(task.subtitle),
-          trailing: Text(task.status),
-          onTap: () {
-            query = task.title;
-            showResults(context);
-          },
+
+        return GestureDetector(
+          onTap: () => close(context, task),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: MyTaskCard(
+              status: task.status,
+              title: task.title,
+              subject: task.subtitle,
+              date: task.date,
+            ),
+          ),
         );
       },
     );

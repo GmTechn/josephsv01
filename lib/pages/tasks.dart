@@ -141,17 +141,16 @@ class _TasksPageState extends State<TasksPage> {
               IconButton(
                 icon: const Icon(CupertinoIcons.search),
                 onPressed: () async {
-                  final Task? result = await showSearch<Task?>(
+                  await showSearch<void>(
                     context: context,
                     delegate: TaskSearchDelegate(
                       tasks: _tasks,
                       initialQuery: _searchQuery,
+                      onTaskTap: (task) {
+                        _showTaskOptions(task);
+                      },
                     ),
                   );
-
-                  if (result != null) {
-                    _showTaskOptions(result);
-                  }
                 },
               ),
             ],
@@ -1045,10 +1044,17 @@ class _EmptyTasksState extends StatelessWidget {
   }
 }
 
-class TaskSearchDelegate extends SearchDelegate<Task?> {
+class TaskSearchDelegate extends SearchDelegate<void> {
   final List<Task> tasks;
+  final void Function(Task task) onTaskTap;
 
-  TaskSearchDelegate({required this.tasks, String initialQuery = ""}) {
+  Task? selectedTask;
+
+  TaskSearchDelegate({
+    required this.tasks,
+    required this.onTaskTap,
+    String initialQuery = "",
+  }) {
     query = initialQuery;
   }
 
@@ -1063,6 +1069,7 @@ class TaskSearchDelegate extends SearchDelegate<Task?> {
           icon: const Icon(CupertinoIcons.clear_circled_solid),
           onPressed: () {
             query = '';
+            selectedTask = null;
             showSuggestions(context);
           },
         ),
@@ -1080,16 +1087,24 @@ class TaskSearchDelegate extends SearchDelegate<Task?> {
   @override
   Widget buildResults(BuildContext context) {
     final results = _searchResults();
-    return _buildTaskCards(results);
+    return _buildTaskCards(context, results);
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
     final results = _searchResults();
-    return _buildTaskCards(results);
+    return _buildTaskCards(context, results);
   }
 
-  Widget _buildTaskCards(List<Task> results) {
+  Widget _buildTaskCards(BuildContext context, List<Task> results) {
+    final scheme = Theme.of(context).colorScheme;
+    final bool isOriginal =
+        Theme.of(context).extension<AppThemeKey>()?.key == "original";
+
+    final Color activeBorder = isOriginal
+        ? const Color(0xff050c20)
+        : scheme.primary;
+
     if (query.trim().isEmpty) {
       return const Center(child: Text("Search by title or subtitle"));
     }
@@ -1103,11 +1118,32 @@ class TaskSearchDelegate extends SearchDelegate<Task?> {
       itemCount: results.length,
       itemBuilder: (context, index) {
         final task = results[index];
+        final bool isSelected = selectedTask?.id == task.id;
 
         return GestureDetector(
-          onTap: () => close(context, task),
-          child: Container(
+          onTap: () {
+            selectedTask = task;
+            showSuggestions(context);
+            onTaskTap(task);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
             margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: isSelected
+                  ? Border.all(color: activeBorder, width: 2)
+                  : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: activeBorder.withOpacity(0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
             child: MyTaskCard(
               status: task.status,
               title: task.title,

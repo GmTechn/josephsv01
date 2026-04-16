@@ -27,6 +27,9 @@ class _SchedulePageState extends State<SchedulePage> {
   int selectedDayIndex = 0;
   late List<_DayItem> _days;
 
+  //to slide the day selector
+  late PageController _pageController;
+
   List<Task> _tasksForDay = [];
   bool _loading = false;
 
@@ -82,6 +85,13 @@ class _SchedulePageState extends State<SchedulePage> {
     super.initState();
     _days = _generateDaysFrom(_anchorDate);
     _loadTasksForSelectedDay();
+    _pageController = PageController(initialPage: 0);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   // =========================
@@ -508,7 +518,6 @@ class _SchedulePageState extends State<SchedulePage> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-
     final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
 
     const Color brandColor = Color(0xff050c20);
@@ -533,7 +542,6 @@ class _SchedulePageState extends State<SchedulePage> {
       ),
       child: Column(
         children: [
-          // MONTH
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: Text(
@@ -545,71 +553,109 @@ class _SchedulePageState extends State<SchedulePage> {
               ),
             ),
           ),
+          SizedBox(
+            height: 80,
+            child: PageView.builder(
+              controller: _pageController,
+              itemBuilder: (context, page) {
+                final pageDays = _generateDaysFrom(
+                  _anchorDate.add(Duration(days: page * 4)),
+                );
 
-          // 4 DAYS
-          Row(
-            children: List.generate(_days.length, (i) {
-              final isSelected = i == selectedDayIndex;
+                return Row(
+                  children: List.generate(pageDays.length, (i) {
+                    final isSelected = selectedDayIndex == i;
 
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () async {
-                    setState(() => selectedDayIndex = i);
-                    await _loadTasksForSelectedDay();
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isOriginal
-                          ? (isSelected ? brandColor : Colors.white)
-                          : (isSelected ? scheme.primary : scheme.surface),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: AspectRatio(
+                          aspectRatio: 0.78,
+                          child: GestureDetector(
+                            onTap: () async {
+                              setState(() {
+                                _days = pageDays;
+                                selectedDayIndex = i;
+                              });
+                              await _loadTasksForSelectedDay();
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              decoration: BoxDecoration(
                                 color: isOriginal
-                                    ? brandColor.withOpacity(.25)
-                                    : scheme.primary.withOpacity(.35),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
+                                    ? (isSelected ? brandColor : Colors.white)
+                                    : (isSelected
+                                          ? scheme.primary
+                                          : scheme.surface),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: isOriginal
+                                              ? brandColor.withOpacity(.25)
+                                              : scheme.primary.withOpacity(.35),
+                                          blurRadius: 14,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ]
+                                    : null,
                               ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _days[i].label,
-                          style: TextStyle(
-                            color: isOriginal
-                                ? (isSelected ? Colors.white : brandColor)
-                                : (isSelected
-                                      ? scheme.onPrimary
-                                      : scheme.onSurface.withOpacity(0.7)),
-                            fontWeight: FontWeight.w600,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    DateFormat('EEE').format(pageDays[i].date),
+                                    style: TextStyle(
+                                      color: isOriginal
+                                          ? (isSelected
+                                                ? Colors.white
+                                                : brandColor)
+                                          : (isSelected
+                                                ? scheme.onPrimary
+                                                : scheme.onSurface.withOpacity(
+                                                    0.7,
+                                                  )),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    pageDays[i].date.day.toString(),
+                                    style: TextStyle(
+                                      color: isOriginal
+                                          ? (isSelected
+                                                ? Colors.white
+                                                : brandColor)
+                                          : (isSelected
+                                                ? scheme.onPrimary
+                                                : scheme.onSurface),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _days[i].date.day.toString(),
-                          style: TextStyle(
-                            color: isOriginal
-                                ? (isSelected ? Colors.white : brandColor)
-                                : (isSelected
-                                      ? scheme.onPrimary
-                                      : scheme.onSurface),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+                      ),
+                    );
+                  }),
+                );
+              },
+              onPageChanged: (page) async {
+                final newDays = _generateDaysFrom(
+                  _anchorDate.add(Duration(days: page * 4)),
+                );
+
+                setState(() {
+                  _days = newDays;
+                  selectedDayIndex = 0;
+                });
+
+                await _loadTasksForSelectedDay();
+              },
+            ),
           ),
         ],
       ),

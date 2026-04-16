@@ -72,9 +72,7 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   bool _isOriginal(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return scheme.primary == const Color(0xff050c20) &&
-        Theme.of(context).brightness == Brightness.light;
+    return Theme.of(context).extension<AppThemeKey>()?.key == "original";
   }
 
   // ---------------- FILTER BUTTON ----------------
@@ -114,7 +112,10 @@ class _TasksPageState extends State<TasksPage> {
 
   // ---------------- APPBAR ----------------
   PreferredSizeWidget _buildAppBar() {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+    final primaryColor = isOriginal ? const Color(0xff050c20) : scheme.primary;
 
     return AppBar(
       automaticallyImplyLeading: false,
@@ -124,7 +125,7 @@ class _TasksPageState extends State<TasksPage> {
           : const Text("M Y  T A S K S"),
       leading: _selectionMode
           ? IconButton(
-              icon: Icon(CupertinoIcons.xmark, color: scheme.primary),
+              icon: Icon(CupertinoIcons.xmark, color: primaryColor),
               onPressed: () => _toggleSelectionMode(false),
             )
           : null,
@@ -175,7 +176,10 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   Future<void> _confirmDeleteSelected() async {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+    final primaryColor = isOriginal ? const Color(0xff050c20) : scheme.primary;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -191,7 +195,7 @@ class _TasksPageState extends State<TasksPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text("Cancel", style: TextStyle(color: scheme.primary)),
+            child: Text("Cancel", style: TextStyle(color: primaryColor)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -691,9 +695,12 @@ class _TasksPageState extends State<TasksPage> {
 
                       TextField(
                         controller: titleController,
+                        cursorColor: primaryColor,
                         style: TextStyle(color: scheme.onSurface),
                         decoration: InputDecoration(
                           labelText: "Title",
+                          labelStyle: TextStyle(color: primaryColor),
+                          floatingLabelStyle: TextStyle(color: primaryColor),
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: primaryColor.withOpacity(.4),
@@ -712,9 +719,12 @@ class _TasksPageState extends State<TasksPage> {
                       TextField(
                         controller: subtitleController,
                         maxLines: 3,
+                        cursorColor: primaryColor,
                         style: TextStyle(color: scheme.onSurface),
                         decoration: InputDecoration(
                           labelText: "Subtitle (optional)",
+                          labelStyle: TextStyle(color: primaryColor),
+                          floatingLabelStyle: TextStyle(color: primaryColor),
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: primaryColor.withOpacity(.4),
@@ -798,20 +808,35 @@ class _TasksPageState extends State<TasksPage> {
                         children: [
                           IconButton(
                             onPressed: () async {
+                              final isOriginal =
+                                  Theme.of(
+                                    context,
+                                  ).extension<AppThemeKey>()?.key ==
+                                  "original";
+
+                              final primaryColor = isOriginal
+                                  ? const Color(0xff050c20)
+                                  : Theme.of(context).colorScheme.primary;
+
                               final pickedDate = await showDatePicker(
                                 context: context,
-                                initialDate: selectedDate ?? DateTime.now(),
-                                firstDate: DateTime(2020),
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2000),
                                 lastDate: DateTime(2100),
+
                                 builder: (context, child) {
                                   return Theme(
                                     data: Theme.of(context).copyWith(
                                       colorScheme: Theme.of(context).colorScheme
                                           .copyWith(
-                                            primary: primaryColor,
-                                            onPrimary: Colors.white,
-                                            onSurface: scheme.onSurface,
+                                            primary:
+                                                primaryColor, // ✅ header + selected day
+                                            onPrimary: Colors
+                                                .white, // text on selected day
+                                            surface: Colors.white,
+                                            onSurface: Colors.black,
                                           ),
+                                      dialogBackgroundColor: Colors.white,
                                     ),
                                     child: child!,
                                   );

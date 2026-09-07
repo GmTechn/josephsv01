@@ -32,6 +32,7 @@ class _SchedulePageState extends State<SchedulePage> {
 
   List<Task> _tasksForDay = [];
   bool _loading = false;
+  Map<String, String> _occurrenceStatuses = {};
 
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -118,6 +119,9 @@ class _SchedulePageState extends State<SchedulePage> {
 
     try {
       final allRows = await _db.getTasks();
+      final occurrenceStatuses = await _db.getAllTaskOccurrenceStatuses();
+
+      _occurrenceStatuses = occurrenceStatuses;
 
       final rows = allRows
           .where((t) => _shouldShowTaskOnDate(t, _selectedDate))
@@ -171,10 +175,27 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   String _computeStatusForDate(Task t, DateTime selectedDate) {
-    final raw = t.status.toLowerCase();
-    if (raw == 'done') return 'done';
+    // ✅ RECURRING TASK:
+    // check status for THIS occurrence only
+    if (t.isRecurring == true && t.id != null) {
+      final key = _db.occurrenceStatusKey(t.id!, selectedDate);
+
+      final occurrenceStatus = _occurrenceStatuses[key]?.toLowerCase();
+
+      if (occurrenceStatus == 'done') {
+        return 'done';
+      }
+    } else {
+      // ✅ NORMAL TASK
+      final raw = t.status.toLowerCase();
+
+      if (raw == 'done') {
+        return 'done';
+      }
+    }
 
     final hasStart = t.startTime != null && t.startTime!.trim().isNotEmpty;
+
     final hasEnd = t.endTime != null && t.endTime!.trim().isNotEmpty;
 
     if (!hasStart || !hasEnd) {
@@ -182,10 +203,12 @@ class _SchedulePageState extends State<SchedulePage> {
     }
 
     final baseDate = _occurrenceDateFor(t, selectedDate);
+
     final now = DateTime.now();
 
     DateTime parse(String time) {
       final parsed = DateFormat.jm().parse(time);
+
       return DateTime(
         baseDate.year,
         baseDate.month,
@@ -203,8 +226,14 @@ class _SchedulePageState extends State<SchedulePage> {
     }
 
     if (now.isBefore(start)) return 'todo';
-    if (now.isAfter(start) && now.isBefore(end)) return 'in_progress';
-    if (now.isAfter(end)) return 'overdue';
+
+    if (now.isAfter(start) && now.isBefore(end)) {
+      return 'in_progress';
+    }
+
+    if (now.isAfter(end)) {
+      return 'overdue';
+    }
 
     return 'todo';
   }
@@ -459,6 +488,9 @@ class _SchedulePageState extends State<SchedulePage> {
                         ? Theme.of(context).copyWith(
                             colorScheme: Theme.of(context).colorScheme.copyWith(
                               primary: const Color(0xff050c20),
+                              onPrimary: Colors.white,
+                              surface: Colors.grey.shade100,
+                              onSurface: const Color(0xff050c20),
                             ),
                           )
                         : Theme.of(context),
@@ -500,6 +532,93 @@ class _SchedulePageState extends State<SchedulePage> {
                             end: t.endTime ?? '--:--',
                             status: status,
                             avatarColor: brandColor,
+
+                            onTap: () async {
+                              final theme = Theme.of(context);
+                              final scheme = theme.colorScheme;
+
+                              final bool isOriginal =
+                                  theme.extension<AppThemeKey>()?.key ==
+                                  "original";
+
+                              final Color primaryColor = isOriginal
+                                  ? const Color(0xff050c20)
+                                  : scheme.primary;
+                              final isDone = status == 'done';
+
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: Text(
+                                      isDone
+                                          ? 'Mark as To Do?'
+                                          : 'Mark as Done?',
+                                    ),
+                                    content: Text(
+                                      t.isRecurring == true
+                                          ? isDone
+                                                ? 'Reset this occurrence to To Do?'
+                                                : 'Mark this occurrence as done?'
+                                          : isDone
+                                          ? 'Reset this task to To Do?'
+                                          : 'Mark this task as done?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: Text(
+                                          'Cancel',
+                                          style: TextStyle(color: primaryColor),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: Text(
+                                          isDone ? 'To Do' : 'Done',
+                                          style: TextStyle(
+                                            color: primaryColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+
+                              if (confirm != true) return;
+
+                              if (t.isRecurring == true) {
+                                if (isDone) {
+                                  await _db.deleteTaskOccurrenceStatus(
+                                    taskId: t.id!,
+                                    occurrenceDate: _selectedDate,
+                                  );
+                                } else {
+                                  await _db.setTaskOccurrenceStatus(
+                                    taskId: t.id!,
+                                    occurrenceDate: _selectedDate,
+                                    status: 'Done',
+                                  );
+                                }
+                              } else {
+                                await _db.updateTask(
+                                  id: t.id!,
+                                  status: isDone ? 'To do' : 'Done',
+                                  title: t.title,
+                                  subtitle: t.subtitle,
+                                  date: t.date,
+                                  startTime: t.startTime,
+                                  endTime: t.endTime,
+                                );
+                              }
+
+                              await _loadTasksForSelectedDay();
+                            },
+
                             onClockTap: () => _setTaskTime(t),
                             clockColor: brandColor,
                           );

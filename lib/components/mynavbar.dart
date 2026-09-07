@@ -4,6 +4,7 @@ import 'package:josephs_vs_01/pages/dashboard.dart';
 import 'package:josephs_vs_01/pages/schedule.dart';
 import 'package:josephs_vs_01/pages/tasks.dart';
 import 'package:josephs_vs_01/main.dart';
+import 'package:josephs_vs_01/pages/weeklyplanner.dart';
 
 class MyNavBar extends StatelessWidget {
   const MyNavBar({super.key, required this.currentIndex});
@@ -31,7 +32,7 @@ class MyNavBar extends StatelessWidget {
         height: 56,
         width: MediaQuery.of(context).size.width,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25.0),
+          padding: const EdgeInsets.symmetric(horizontal: 18.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -56,6 +57,14 @@ class MyNavBar extends StatelessWidget {
                 icon: CupertinoIcons.calendar,
                 selected: currentIndex == 2,
                 index: 2,
+                currentIndex: currentIndex,
+                themeKey: themeKey,
+              ),
+              IconBottomBar(
+                text: "Weekly",
+                icon: CupertinoIcons.rectangle_grid_1x2_fill,
+                selected: currentIndex == 3,
+                index: 3,
                 currentIndex: currentIndex,
                 themeKey: themeKey,
               ),
@@ -89,12 +98,15 @@ class IconBottomBar extends StatelessWidget {
     if (index == currentIndex) return;
 
     Widget page;
-    if (text == "Home") {
+
+    if (index == 0) {
       page = const Dashboard();
-    } else if (text == "Tasks") {
+    } else if (index == 1) {
       page = const TasksPage();
-    } else {
+    } else if (index == 2) {
       page = const SchedulePage();
+    } else {
+      page = const WeeklyOverviewPage();
     }
 
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));

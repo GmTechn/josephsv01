@@ -13,6 +13,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class TasksPage extends StatefulWidget {
   const TasksPage({super.key, this.initialFilter = "All"});
+
   final String initialFilter;
 
   @override
@@ -24,60 +25,77 @@ class _TasksPageState extends State<TasksPage> {
 
   late String selectedFilter;
   List<Task> _tasks = [];
+  int? _recentlyUpdatedTaskId;
 
   bool _selectionMode = false;
   final Set<int> _selectedTaskIds = {};
 
-  //vars for speech to text
+  // Speech to text
   late stt.SpeechToText _speech;
   bool _isListening = false;
 
-  //microphone key
+  // Microphone key
   final GlobalKey _micKey = GlobalKey();
 
-  //subscription variable
+  // Subscription
   final SubscriptionService subscriptionService = SubscriptionService();
-
-  //seach variable
-  final String _searchQuery = "";
 
   @override
   void initState() {
     super.initState();
+
     selectedFilter = widget.initialFilter;
     _loadTasks();
+
     _speech = stt.SpeechToText();
   }
 
+  // ============================================================
+  // LOAD TASKS
+  // ============================================================
+
   Future<void> _loadTasks() async {
     final rows = await _db.getTasks();
+
     if (!mounted) return;
-    setState(() => _tasks = rows);
+
+    setState(() {
+      _tasks = rows;
+    });
   }
+
+  // ============================================================
+  // FILTERED TASKS
+  // ============================================================
 
   List<Task> get _filteredTasks {
     List<Task> filtered = selectedFilter == "All"
-        ? _tasks
+        ? List<Task>.from(_tasks)
         : _tasks.where((t) => t.status.trim() == selectedFilter).toList();
 
-    if (_searchQuery.trim().isEmpty) return filtered;
+    // Put the task that was just modified at the top
+    if (_recentlyUpdatedTaskId != null) {
+      filtered.sort((a, b) {
+        if (a.id == _recentlyUpdatedTaskId) return -1;
+        if (b.id == _recentlyUpdatedTaskId) return 1;
+        return 0;
+      });
+    }
 
-    final q = _searchQuery.toLowerCase().trim();
-
-    return filtered.where((t) {
-      final title = t.title.toLowerCase();
-      final subtitle = t.subtitle.toLowerCase();
-      return title.contains(q) || subtitle.contains(q);
-    }).toList();
+    return filtered;
   }
 
   bool _isOriginal(BuildContext context) {
     return Theme.of(context).extension<AppThemeKey>()?.key == "original";
   }
 
-  // ---------------- FILTER BUTTON ----------------
+  // ============================================================
+  // FILTER BUTTON
+  // ============================================================
+
   Widget _buildFilterButton(String label) {
     final scheme = Theme.of(context).colorScheme;
+
     final isOriginal =
         Theme.of(context).extension<AppThemeKey>()?.key == "original";
 
@@ -87,6 +105,7 @@ class _TasksPageState extends State<TasksPage> {
       onTap: () {
         setState(() {
           selectedFilter = label;
+
           _selectionMode = false;
           _selectedTaskIds.clear();
         });
@@ -110,25 +129,35 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  // ---------------- APPBAR ----------------
+  // ============================================================
+  // APP BAR
+  // ============================================================
+
   PreferredSizeWidget _buildAppBar() {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
     final isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+
     final primaryColor = isOriginal ? const Color(0xff050c20) : scheme.primary;
 
     return AppBar(
       automaticallyImplyLeading: false,
       centerTitle: true,
+
       title: _selectionMode
           ? Text("${_selectedTaskIds.length} selected")
           : const Text("M Y  T A S K S"),
+
       leading: _selectionMode
           ? IconButton(
               icon: Icon(CupertinoIcons.xmark, color: primaryColor),
-              onPressed: () => _toggleSelectionMode(false),
+              onPressed: () {
+                _toggleSelectionMode(false);
+              },
             )
           : null,
+
       actions: _selectionMode
           ? [
               IconButton(
@@ -146,22 +175,57 @@ class _TasksPageState extends State<TasksPage> {
                     context: context,
                     delegate: TaskSearchDelegate(
                       tasks: _tasks,
-                      initialQuery: _searchQuery,
-                      onTaskTap: (task) {
-                        _showTaskOptions(task);
+
+                      // ==================================================
+                      // USER SELECTS A SEARCH RESULT
+                      // ==================================================
+                      onTaskTap: (task, closeSearch) {
+                        _showTaskOptions(
+                          task,
+
+                          // After DONE / EDIT:
+                          // close Search completely
+                          onActionCompleted: () async {
+                            closeSearch();
+
+                            if (!mounted) return;
+
+                            setState(() {
+                              selectedFilter = "All";
+                            });
+
+                            await _loadTasks();
+                          },
+                        );
                       },
                     ),
                   );
+
+                  // Search was closed with X
+                  if (!mounted) return;
+
+                  setState(() {
+                    selectedFilter = "All";
+                  });
+
+                  await _loadTasks();
                 },
               ),
             ],
     );
   }
 
+  // ============================================================
+  // SELECTION MODE
+  // ============================================================
+
   void _toggleSelectionMode(bool enable) {
     setState(() {
       _selectionMode = enable;
-      if (!enable) _selectedTaskIds.clear();
+
+      if (!enable) {
+        _selectedTaskIds.clear();
+      }
     });
   }
 
@@ -175,10 +239,16 @@ class _TasksPageState extends State<TasksPage> {
     });
   }
 
+  // ============================================================
+  // DELETE SELECTED TASKS
+  // ============================================================
+
   Future<void> _confirmDeleteSelected() async {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
     final isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+
     final primaryColor = isOriginal ? const Color(0xff050c20) : scheme.primary;
 
     final confirm = await showDialog<bool>(
@@ -194,11 +264,15 @@ class _TasksPageState extends State<TasksPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () {
+              Navigator.pop(context, false);
+            },
             child: Text("Cancel", style: TextStyle(color: primaryColor)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              Navigator.pop(context, true);
+            },
             child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
@@ -212,27 +286,35 @@ class _TasksPageState extends State<TasksPage> {
     }
 
     _toggleSelectionMode(false);
+
     await _loadTasks();
   }
 
-  //-------- Listening to the speech to change to text ------//
-  //to know if we are still listening or not ---//
+  // ============================================================
+  // SPEECH TO TEXT
+  // ============================================================
 
   Future<void> _toggleListening(TextEditingController controller) async {
     if (!_isListening) {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if (status == 'done') {
-            setState(() => _isListening = false);
+            setState(() {
+              _isListening = false;
+            });
           }
         },
         onError: (error) {
-          setState(() => _isListening = false);
+          setState(() {
+            _isListening = false;
+          });
         },
       );
 
       if (available) {
-        setState(() => _isListening = true);
+        setState(() {
+          _isListening = true;
+        });
 
         _speech.listen(
           onResult: (result) {
@@ -243,28 +325,38 @@ class _TasksPageState extends State<TasksPage> {
         );
       }
     } else {
-      setState(() => _isListening = false);
+      setState(() {
+        _isListening = false;
+      });
+
       _speech.stop();
     }
   }
 
-  //------- Speech to Text subcription -----//
   Future<bool> _canUseVoiceFeature() async {
     return subscriptionService.isSubscribed;
   }
 
-  // ---------------- UI ----------------
+  // ============================================================
+  // MAIN UI
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
     final isOriginal = _isOriginal(context);
 
     return Scaffold(
       appBar: _buildAppBar(),
+
       body: Column(
         children: [
           const SizedBox(height: 20),
 
+          // ====================================================
+          // FILTERS
+          // ====================================================
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Padding(
@@ -283,31 +375,49 @@ class _TasksPageState extends State<TasksPage> {
 
           const SizedBox(height: 12),
 
+          // ====================================================
+          // TASK LIST
+          // ====================================================
           Expanded(
             child: _filteredTasks.isEmpty
                 ? const Center(child: _EmptyTasksState())
                 : RefreshIndicator(
                     onRefresh: _loadTasks,
+
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
+
                       itemCount: _filteredTasks.length,
+
                       itemBuilder: (context, index) {
                         final task = _filteredTasks[index];
+
                         final isSelected = _selectedTaskIds.contains(
                           task.id ?? -1,
                         );
 
                         return GestureDetector(
-                          onLongPress: () => _toggleSelectionMode(true),
+                          onLongPress: () {
+                            _toggleSelectionMode(true);
+                          },
+
                           onTap: _selectionMode
-                              ? () => _toggleTaskSelection(task.id!)
-                              : () => _showTaskOptions(task),
+                              ? () {
+                                  _toggleTaskSelection(task.id!);
+                                }
+                              : () {
+                                  _showTaskOptions(task);
+                                },
+
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
+
                             margin: const EdgeInsets.symmetric(vertical: 8),
+
                             transform: _selectionMode
                                 ? Matrix4.translationValues(28, 0, 0)
                                 : Matrix4.identity(),
+
                             child: Stack(
                               children: [
                                 MyTaskCard(
@@ -316,19 +426,23 @@ class _TasksPageState extends State<TasksPage> {
                                   subject: task.subtitle,
                                   date: task.date,
                                 ),
+
                                 if (_selectionMode)
                                   Positioned(
                                     left: 0,
                                     top: 0,
                                     bottom: 0,
+
                                     child: Padding(
                                       padding: const EdgeInsets.only(left: 6),
+
                                       child: Center(
                                         child: Icon(
                                           isSelected
                                               ? CupertinoIcons
                                                     .check_mark_circled_solid
                                               : CupertinoIcons.circle,
+
                                           color: isSelected
                                               ? (isOriginal
                                                     ? const Color(0xff050c20)
@@ -336,6 +450,7 @@ class _TasksPageState extends State<TasksPage> {
                                               : scheme.onSurface.withOpacity(
                                                   .4,
                                                 ),
+
                                           size: 28,
                                         ),
                                       ),
@@ -351,44 +466,57 @@ class _TasksPageState extends State<TasksPage> {
           ),
         ],
       ),
+
       floatingActionButton: !_selectionMode
           ? Builder(
               builder: (context) {
                 final scheme = Theme.of(context).colorScheme;
+
                 final isOriginal =
                     Theme.of(context).extension<AppThemeKey>()?.key ==
                     "original";
 
                 return FloatingActionButton(
                   tooltip: 'Add a new task',
-                  onPressed: () => _showCreateOrEditTaskDialog(),
+
+                  onPressed: () {
+                    _showCreateOrEditTaskDialog();
+                  },
+
                   backgroundColor: isOriginal
                       ? const Color(0xFF050C20)
                       : scheme.primary,
-                  child: Icon(CupertinoIcons.add, color: Colors.white),
+
+                  child: const Icon(CupertinoIcons.add, color: Colors.white),
                 );
               },
             )
           : null,
+
       bottomNavigationBar: const MyNavBar(currentIndex: 1),
     );
   }
 
-  // ----------------------------
-  // BOTTOM SHEET OPTIONS (tap on card)
-  // ----------------------------
-  void _showTaskOptions(Task task) {
+  // ============================================================
+  // TASK OPTIONS
+  // ============================================================
+
+  void _showTaskOptions(Task task, {VoidCallback? onActionCompleted}) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
     final isOriginal = theme.extension<AppThemeKey>()?.key == "original";
 
     final iconColor = isOriginal ? const Color(0xff050c20) : scheme.primary;
+
     final textColor = isOriginal ? const Color(0xff050c20) : scheme.onSurface;
+
+    _recentlyUpdatedTaskId = task.id;
 
     showModalBottomSheet(
       context: context,
       backgroundColor: scheme.surface,
+
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -397,6 +525,9 @@ class _TasksPageState extends State<TasksPage> {
         return SafeArea(
           child: Wrap(
             children: [
+              // ==================================================
+              // MARK AS DONE
+              // ==================================================
               ListTile(
                 leading: Icon(
                   CupertinoIcons.check_mark_circled_solid,
@@ -418,18 +549,31 @@ class _TasksPageState extends State<TasksPage> {
                     endTime: task.endTime,
                   );
 
+                  // Keep this task at the top after returning
+                  _recentlyUpdatedTaskId = task.id;
+
                   await _loadTasks();
+
+                  onActionCompleted?.call();
                 },
               ),
 
+              // ==================================================
+              // EDIT
+              // ==================================================
               ListTile(
                 leading: Icon(CupertinoIcons.pencil, color: iconColor),
 
                 title: Text("Edit Task", style: TextStyle(color: textColor)),
 
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(context);
-                  _showCreateOrEditTaskDialog(task: task);
+
+                  await _showCreateOrEditTaskDialog(task: task);
+
+                  // If this came from Search:
+                  // close Search after editing
+                  onActionCompleted?.call();
                 },
               ),
 
@@ -441,55 +585,10 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  //----- Show start trial dialog ----///
-  // void _showUpgradeDialog() {
-  //   final scheme = Theme.of(context).colorScheme;
-  //   final isOriginal =
-  //       Theme.of(context).extension<AppThemeKey>()?.key == "original";
+  // ============================================================
+  // COMING SOON
+  // ============================================================
 
-  //   final textColor = isOriginal ? const Color(0xff050c20) : scheme.onSurface;
-
-  //   showDialog(
-  //     context: context,
-  //     builder: (_) => AlertDialog(
-  //       backgroundColor: scheme.surface,
-  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  //       title: Text(
-  //         "Unlock Voice",
-  //         style: TextStyle(
-  //           fontSize: 16,
-  //           fontWeight: FontWeight.bold,
-  //           color: textColor,
-  //         ),
-  //       ),
-  //       content: Text(
-  //         "Start your 7-day free trial.\n\nThen \$2.99/month.",
-  //         style: TextStyle(fontSize: 14, color: textColor),
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(context),
-  //           child: Text("Not now", style: TextStyle(color: textColor)),
-  //         ),
-  //         TextButton(
-  //           onPressed: () async {
-  //             Navigator.pop(context);
-  //             await subscriptionService.buy();
-  //           },
-  //           child: Text(
-  //             "Start Trial",
-  //             style: TextStyle(
-  //               fontWeight: FontWeight.bold,
-  //               color: isOriginal ? const Color(0xff050c20) : scheme.primary,
-  //             ),
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  //------ Show coming soon dialog ----//
   void _showComingSoonDialog() {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -508,7 +607,9 @@ class _TasksPageState extends State<TasksPage> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: scheme.surface,
+
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
         title: Text(
           "Voice Feature",
           style: TextStyle(
@@ -517,13 +618,18 @@ class _TasksPageState extends State<TasksPage> {
             color: textColor,
           ),
         ),
+
         content: Text(
           "This feature is coming in the next update. Stay tuned!",
           style: TextStyle(fontSize: 14, color: textColor),
         ),
+
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+
             child: Text(
               "OK",
               style: TextStyle(
@@ -537,11 +643,17 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  //----- show tooltip ----//
+  // ============================================================
+  // DONE TOOLTIP
+  // ============================================================
+
   void _showDoneTooltip(BuildContext context, GlobalKey key) {
     final overlay = Overlay.of(context);
+
     final renderBox = key.currentContext!.findRenderObject() as RenderBox;
+
     final position = renderBox.localToGlobal(Offset.zero);
+
     final size = renderBox.size;
 
     late OverlayEntry entry;
@@ -549,18 +661,26 @@ class _TasksPageState extends State<TasksPage> {
     entry = OverlayEntry(
       builder: (context) => Positioned(
         left: position.dx + size.width / 2 - 40,
+
         top: position.dy - 40,
+
         child: Material(
           color: Colors.transparent,
+
           child: AnimatedOpacity(
             opacity: 1,
+
             duration: const Duration(milliseconds: 150),
+
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+
               decoration: BoxDecoration(
                 color: Colors.black87,
+
                 borderRadius: BorderRadius.circular(8),
               ),
+
               child: const Text(
                 "Done",
                 style: TextStyle(
@@ -582,7 +702,10 @@ class _TasksPageState extends State<TasksPage> {
     });
   }
 
-  //----- Add create or edit task ----///
+  // ============================================================
+  // CREATE / EDIT TASK
+  // ============================================================
+
   Future<void> _showCreateOrEditTaskDialog({Task? task}) async {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -594,15 +717,19 @@ class _TasksPageState extends State<TasksPage> {
         : scheme.primary;
 
     final titleController = TextEditingController(text: task?.title ?? "");
+
     final subtitleController = TextEditingController(
       text: task?.subtitle ?? "",
     );
 
     DateTime? selectedDate = task?.date;
+
     final bool isEdit = task != null;
 
     String status = task?.status ?? "To do";
+
     bool isRecurring = task?.isRecurring ?? false;
+
     String recurrenceType = task?.recurrenceType ?? "Daily";
 
     final List<String> statusOptions = isEdit
@@ -616,34 +743,45 @@ class _TasksPageState extends State<TasksPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+
       backgroundColor: scheme.surface,
+
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AnimatedPadding(
               duration: const Duration(milliseconds: 200),
+
               curve: Curves.easeOut,
+
               padding: EdgeInsets.only(
                 left: 20,
                 right: 20,
                 top: 20,
+
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
+
               child: SafeArea(
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+
                     crossAxisAlignment: CrossAxisAlignment.start,
+
                     children: [
                       Center(
                         child: Container(
                           width: 40,
                           height: 4,
+
                           decoration: BoxDecoration(
                             color: Colors.grey.shade400,
+
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
@@ -653,9 +791,12 @@ class _TasksPageState extends State<TasksPage> {
 
                       Text(
                         isEdit ? "Edit Task" : "Create Task",
+
                         style: TextStyle(
                           color: scheme.onSurface,
+
                           fontSize: 20,
+
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -664,28 +805,37 @@ class _TasksPageState extends State<TasksPage> {
 
                       DropdownButtonFormField<String>(
                         value: status,
+
                         dropdownColor: scheme.surface,
+
                         style: TextStyle(color: scheme.onSurface),
+
                         items: statusOptions
                             .map(
                               (s) => DropdownMenuItem(value: s, child: Text(s)),
                             )
                             .toList(),
+
                         onChanged: (val) {
                           setDialogState(() {
                             status = val ?? status;
                           });
                         },
+
                         decoration: InputDecoration(
                           labelText: "Status",
+
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: primaryColor.withOpacity(.4),
                             ),
+
                             borderRadius: BorderRadius.circular(12),
                           ),
+
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: primaryColor),
+
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -695,20 +845,29 @@ class _TasksPageState extends State<TasksPage> {
 
                       TextField(
                         controller: titleController,
+
                         cursorColor: primaryColor,
+
                         style: TextStyle(color: scheme.onSurface),
+
                         decoration: InputDecoration(
                           labelText: "Title",
+
                           labelStyle: TextStyle(color: primaryColor),
+
                           floatingLabelStyle: TextStyle(color: primaryColor),
+
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: primaryColor.withOpacity(.4),
                             ),
+
                             borderRadius: BorderRadius.circular(12),
                           ),
+
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: primaryColor),
+
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -718,21 +877,31 @@ class _TasksPageState extends State<TasksPage> {
 
                       TextField(
                         controller: subtitleController,
+
                         maxLines: 3,
+
                         cursorColor: primaryColor,
+
                         style: TextStyle(color: scheme.onSurface),
+
                         decoration: InputDecoration(
                           labelText: "Subtitle (optional)",
+
                           labelStyle: TextStyle(color: primaryColor),
+
                           floatingLabelStyle: TextStyle(color: primaryColor),
+
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: primaryColor.withOpacity(.4),
                             ),
+
                             borderRadius: BorderRadius.circular(12),
                           ),
+
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: primaryColor),
+
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -742,18 +911,25 @@ class _TasksPageState extends State<TasksPage> {
 
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
+
                         activeColor: primaryColor,
+
                         title: Text(
                           "Recurring task",
+
                           style: TextStyle(
                             color: scheme.onSurface,
+
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+
                         value: isRecurring,
+
                         onChanged: (val) {
                           setDialogState(() {
                             isRecurring = val;
+
                             if (!isRecurring) {
                               recurrenceType = "Daily";
                             }
@@ -763,10 +939,14 @@ class _TasksPageState extends State<TasksPage> {
 
                       if (isRecurring) ...[
                         const SizedBox(height: 8),
+
                         DropdownButtonFormField<String>(
                           value: recurrenceType,
+
                           dropdownColor: scheme.surface,
+
                           style: TextStyle(color: scheme.onSurface),
+
                           items: const [
                             DropdownMenuItem(
                               value: "Daily",
@@ -781,21 +961,27 @@ class _TasksPageState extends State<TasksPage> {
                               child: Text("Monthly"),
                             ),
                           ],
+
                           onChanged: (val) {
                             setDialogState(() {
                               recurrenceType = val ?? "Daily";
                             });
                           },
+
                           decoration: InputDecoration(
                             labelText: "Repeat",
+
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(
                                 color: primaryColor.withOpacity(.4),
                               ),
+
                               borderRadius: BorderRadius.circular(12),
                             ),
+
                             focusedBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: primaryColor),
+
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
@@ -808,20 +994,13 @@ class _TasksPageState extends State<TasksPage> {
                         children: [
                           IconButton(
                             onPressed: () async {
-                              final isOriginal =
-                                  Theme.of(
-                                    context,
-                                  ).extension<AppThemeKey>()?.key ==
-                                  "original";
-
-                              final primaryColor = isOriginal
-                                  ? const Color(0xff050c20)
-                                  : Theme.of(context).colorScheme.primary;
-
                               final pickedDate = await showDatePicker(
                                 context: context,
-                                initialDate: selectedDate,
+
+                                initialDate: selectedDate ?? DateTime.now(),
+
                                 firstDate: DateTime(2000),
+
                                 lastDate: DateTime(2100),
 
                                 builder: (context, child) {
@@ -829,15 +1008,11 @@ class _TasksPageState extends State<TasksPage> {
                                     data: Theme.of(context).copyWith(
                                       colorScheme: Theme.of(context).colorScheme
                                           .copyWith(
-                                            primary:
-                                                primaryColor, // ✅ header + selected day
-                                            onPrimary: Colors
-                                                .white, // text on selected day
-                                            surface: Colors.white,
-                                            onSurface: Colors.black,
+                                            primary: primaryColor,
+                                            onPrimary: Colors.white,
                                           ),
-                                      dialogBackgroundColor: Colors.white,
                                     ),
+
                                     child: child!,
                                   );
                                 },
@@ -849,6 +1024,7 @@ class _TasksPageState extends State<TasksPage> {
                                 });
                               }
                             },
+
                             icon: Icon(
                               CupertinoIcons.calendar,
                               color: primaryColor,
@@ -862,10 +1038,12 @@ class _TasksPageState extends State<TasksPage> {
                                         ? "Select start date"
                                         : "Select date")
                                   : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+
                               style: TextStyle(
                                 color: selectedDate == null
-                                    ? scheme.onSurface.withOpacity(0.6)
+                                    ? scheme.onSurface.withOpacity(.6)
                                     : primaryColor,
+
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -873,47 +1051,64 @@ class _TasksPageState extends State<TasksPage> {
 
                           InkWell(
                             key: _micKey,
+
                             customBorder: const CircleBorder(),
+
                             onTap: () async {
                               final allowed = await _canUseVoiceFeature();
+
                               if (!allowed) {
                                 _showComingSoonDialog();
                                 return;
                               }
 
                               final wasListening = _isListening;
+
                               await _toggleListening(subtitleController);
+
                               setDialogState(() {});
 
                               if (wasListening) {
                                 _showDoneTooltip(context, _micKey);
                               }
                             },
+
                             child: Stack(
                               alignment: Alignment.center,
+
                               children: [
                                 Icon(
                                   CupertinoIcons.mic_fill,
+
                                   size: 30,
+
                                   color: primaryColor,
                                 ),
+
                                 Positioned(
                                   top: 0,
                                   right: 0,
+
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 6,
                                       vertical: 2,
                                     ),
+
                                     decoration: BoxDecoration(
                                       color: Colors.orange,
+
                                       borderRadius: BorderRadius.circular(8),
                                     ),
+
                                     child: const Text(
                                       "Soon",
+
                                       style: TextStyle(
                                         fontSize: 8,
+
                                         color: Colors.white,
+
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -929,20 +1124,26 @@ class _TasksPageState extends State<TasksPage> {
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
+
                         children: [
                           TextButton(
                             onPressed: () {
                               if (_isListening) {
                                 _speech.stop();
+
                                 _isListening = false;
                               }
+
                               Navigator.pop(context);
                             },
+
                             child: Text(
                               "Cancel",
+
                               style: TextStyle(color: scheme.onSurface),
                             ),
                           ),
+
                           TextButton(
                             onPressed: () async {
                               final title = titleController.text.trim();
@@ -950,29 +1151,42 @@ class _TasksPageState extends State<TasksPage> {
                               if (title.isEmpty || selectedDate == null) {
                                 showDialog(
                                   context: context,
+
                                   builder: (_) => AlertDialog(
                                     backgroundColor: scheme.surface,
+
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
+
                                     title: Text(
                                       "Missing information",
+
                                       style: TextStyle(
                                         color: scheme.onSurface,
+
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
+
                                     content: Text(
                                       "Please enter a title and select a date.",
+
                                       style: TextStyle(color: scheme.onSurface),
                                     ),
+
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.pop(context),
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+
                                         child: Text(
                                           "OK",
+
                                           style: TextStyle(
                                             color: primaryColor,
+
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -980,6 +1194,7 @@ class _TasksPageState extends State<TasksPage> {
                                     ],
                                   ),
                                 );
+
                                 return;
                               }
 
@@ -991,10 +1206,15 @@ class _TasksPageState extends State<TasksPage> {
                               if (!isEdit) {
                                 await _db.createTask(
                                   title: title,
+
                                   subtitle: subtitleController.text.trim(),
+
                                   date: selectedDate!,
+
                                   status: status,
+
                                   isRecurring: isRecurring,
+
                                   recurrenceType: isRecurring
                                       ? recurrenceType
                                       : null,
@@ -1002,13 +1222,21 @@ class _TasksPageState extends State<TasksPage> {
                               } else {
                                 await _db.updateTask(
                                   id: task.id!,
+
                                   status: status,
+
                                   title: title,
+
                                   subtitle: subtitleController.text.trim(),
+
                                   date: selectedDate!,
+
                                   startTime: task.startTime,
+
                                   endTime: task.endTime,
+
                                   isRecurring: isRecurring,
+
                                   recurrenceType: isRecurring
                                       ? recurrenceType
                                       : null,
@@ -1016,12 +1244,16 @@ class _TasksPageState extends State<TasksPage> {
                               }
 
                               Navigator.pop(context);
+
                               await _loadTasks();
                             },
+
                             child: Text(
                               isEdit ? "Save" : "Add",
+
                               style: TextStyle(
                                 color: primaryColor,
+
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1040,8 +1272,11 @@ class _TasksPageState extends State<TasksPage> {
   }
 }
 
+// ============================================================
+// EMPTY STATE
+// ============================================================
+
 class _EmptyTasksState extends StatelessWidget {
-  //when there's no task just send empty text
   const _EmptyTasksState();
 
   @override
@@ -1050,16 +1285,22 @@ class _EmptyTasksState extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
+
       child: Column(
         mainAxisSize: MainAxisSize.min,
+
         children: [
           const SizedBox(height: 6),
+
           Text(
             "Tap + to create your first task.",
+
             textAlign: TextAlign.center,
+
             style: TextStyle(
               fontSize: 13,
               height: 1.4,
+
               color: scheme.onSurface.withOpacity(.6),
             ),
           ),
@@ -1069,32 +1310,86 @@ class _EmptyTasksState extends StatelessWidget {
   }
 }
 
+// ============================================================
+// SEARCH
+// ============================================================
+
 class TaskSearchDelegate extends SearchDelegate<void> {
   final List<Task> tasks;
-  final void Function(Task task) onTaskTap;
+
+  final void Function(Task task, VoidCallback closeSearch) onTaskTap;
 
   Task? selectedTask;
 
-  TaskSearchDelegate({
-    required this.tasks,
-    required this.onTaskTap,
-    String initialQuery = "",
-  }) {
-    query = initialQuery;
+  TaskSearchDelegate({required this.tasks, required this.onTaskTap});
+
+  bool _isOriginal(BuildContext context) {
+    return Theme.of(context).extension<AppThemeKey>()?.key == "original";
+  }
+
+  Color _primaryColor(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return _isOriginal(context) ? const Color(0xff050c20) : scheme.primary;
   }
 
   @override
-  String get searchFieldLabel => "Search tasks";
+  TextStyle? get searchFieldStyle =>
+      const TextStyle(fontSize: 15, fontWeight: FontWeight.w400);
+
+  @override
+  String get searchFieldLabel => "Search by title or subtitle";
+
+  @override
+  ThemeData appBarTheme(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final primaryColor = _primaryColor(context);
+
+    return theme.copyWith(
+      appBarTheme: theme.appBarTheme.copyWith(
+        backgroundColor: theme.colorScheme.surface,
+
+        elevation: 0,
+      ),
+
+      textSelectionTheme: theme.textSelectionTheme.copyWith(
+        cursorColor: primaryColor,
+
+        selectionColor: primaryColor.withOpacity(.25),
+
+        selectionHandleColor: primaryColor,
+      ),
+
+      inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+        hintStyle: TextStyle(
+          color: theme.colorScheme.onSurface.withOpacity(.5),
+
+          fontSize: 15,
+        ),
+
+        border: InputBorder.none,
+      ),
+    );
+  }
 
   @override
   List<Widget>? buildActions(BuildContext context) {
     return [
-      if (query.isNotEmpty)
+      if (query.isNotEmpty || selectedTask != null)
         IconButton(
-          icon: const Icon(CupertinoIcons.clear_circled_solid),
+          icon: Icon(
+            CupertinoIcons.clear_circled_solid,
+
+            color: _primaryColor(context),
+
+            size: 21,
+          ),
+
           onPressed: () {
-            query = '';
             selectedTask = null;
+            query = '';
+
             showSuggestions(context);
           },
         ),
@@ -1104,75 +1399,144 @@ class TaskSearchDelegate extends SearchDelegate<void> {
   @override
   Widget? buildLeading(BuildContext context) {
     return IconButton(
-      icon: const Icon(CupertinoIcons.back),
-      onPressed: () => close(context, null),
+      icon: Icon(CupertinoIcons.xmark, color: _primaryColor(context), size: 21),
+
+      onPressed: () {
+        close(context, null);
+      },
     );
   }
 
   @override
   Widget buildResults(BuildContext context) {
-    final results = _searchResults();
-    return _buildTaskCards(context, results);
+    return _buildTaskCards(context, _searchResults());
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final results = _searchResults();
-    return _buildTaskCards(context, results);
+    return _buildTaskCards(context, _searchResults());
   }
 
   Widget _buildTaskCards(BuildContext context, List<Task> results) {
     final scheme = Theme.of(context).colorScheme;
-    final bool isOriginal =
-        Theme.of(context).extension<AppThemeKey>()?.key == "original";
 
-    final Color activeBorder = isOriginal
-        ? const Color(0xff050c20)
-        : scheme.primary;
+    _primaryColor(context);
+
+    // ==========================================================
+    // SELECTED TASK:
+    // ONLY THIS TASK IS DISPLAYED
+    // ==========================================================
+
+    if (selectedTask != null) {
+      final task = selectedTask!;
+
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+        children: [
+          MyTaskCard(
+            status: task.status,
+
+            title: task.title,
+
+            subject: task.subtitle,
+
+            date: task.date,
+          ),
+        ],
+      );
+    }
+
+    // ==========================================================
+    // BEFORE SEARCHING:
+    // NORMAL TASKS STAY VISIBLE
+    // ==========================================================
 
     if (query.trim().isEmpty) {
-      return const Center(child: Text("Search by title or subtitle"));
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+        itemCount: tasks.length,
+
+        itemBuilder: (context, index) {
+          final task = tasks[index];
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+
+            child: MyTaskCard(
+              status: task.status,
+
+              title: task.title,
+
+              subject: task.subtitle,
+
+              date: task.date,
+            ),
+          );
+        },
+      );
     }
 
+    // ==========================================================
+    // NO RESULT
+    // ==========================================================
+
     if (results.isEmpty) {
-      return const Center(child: Text("No matching tasks"));
+      return Center(
+        child: Text(
+          "No matching tasks",
+
+          style: TextStyle(
+            color: scheme.onSurface.withOpacity(.6),
+
+            fontSize: 14,
+          ),
+        ),
+      );
     }
+
+    // ==========================================================
+    // SEARCH RESULTS
+    // ==========================================================
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
       itemCount: results.length,
+
       itemBuilder: (context, index) {
         final task = results[index];
-        final bool isSelected = selectedTask?.id == task.id;
 
         return GestureDetector(
           onTap: () {
+            // Isolate this task
             selectedTask = task;
+
             showSuggestions(context);
-            onTaskTap(task);
+
+            // Open its actions
+            onTaskTap(
+              task,
+
+              // This callback closes
+              // the entire SearchDelegate
+              () {
+                close(context, null);
+              },
+            );
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: isSelected
-                  ? Border.all(color: activeBorder, width: 2)
-                  : null,
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: activeBorder.withOpacity(0.12),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
+
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+
             child: MyTaskCard(
               status: task.status,
+
               title: task.title,
+
               subject: task.subtitle,
+
               date: task.date,
             ),
           ),
@@ -1183,6 +1547,10 @@ class TaskSearchDelegate extends SearchDelegate<void> {
 
   List<Task> _searchResults() {
     final q = query.toLowerCase().trim();
+
+    if (q.isEmpty) {
+      return tasks;
+    }
 
     return tasks.where((task) {
       return task.title.toLowerCase().contains(q) ||

@@ -292,7 +292,15 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _onAvatarTap() {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
+
+    final Color primaryColor = isOriginal
+        ? const Color(0xff050c20)
+        : scheme.primary;
+
     final path = _currentUser?.photoPath ?? '';
     final hasPhoto = path.isNotEmpty && File(path).existsSync();
 
@@ -327,14 +335,20 @@ class _DashboardState extends State<Dashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Close", style: TextStyle(color: scheme.primary)),
+            child: Text("Close", style: TextStyle(color: primaryColor)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _showPhotoOptions();
             },
-            child: Text("Modify", style: TextStyle(color: scheme.primary)),
+            child: Text(
+              "Modify",
+              style: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

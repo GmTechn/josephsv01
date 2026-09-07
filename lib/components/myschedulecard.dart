@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 // ignore: must_be_immutable
 class MyScheduleCard extends StatelessWidget {
   final Color clockColor;
+  final VoidCallback? onTap;
 
   const MyScheduleCard({
     required this.title,
@@ -16,7 +17,9 @@ class MyScheduleCard extends StatelessWidget {
     required this.avatarColor,
     required this.onClockTap,
     required this.clockColor,
+
     super.key,
+    this.onTap,
   });
 
   final String title;
@@ -69,6 +72,7 @@ class MyScheduleCard extends StatelessWidget {
     final endColor = scheme.onSurface.withOpacity(.65);
 
     return GestureDetector(
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: backgroundColor,

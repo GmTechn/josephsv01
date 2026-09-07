@@ -292,66 +292,70 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _onAvatarTap() {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    final bool isOriginal = theme.extension<AppThemeKey>()?.key == "original";
-
-    final Color primaryColor = isOriginal
-        ? const Color(0xff050c20)
-        : scheme.primary;
+    Theme.of(context);
 
     final path = _currentUser?.photoPath ?? '';
     final hasPhoto = path.isNotEmpty && File(path).existsSync();
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: scheme.surface,
-        title: Center(
-          child: Text(
-            "Profile Picture",
-            style: TextStyle(color: scheme.onSurface),
-          ),
-        ),
-        content: SizedBox(
-          width: 260,
-          height: 260,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: hasPhoto
-                ? Image.file(File(path), fit: BoxFit.cover)
-                : Container(
-                    color: scheme.surfaceContainerHighest,
-                    child: Icon(
-                      CupertinoIcons.person_fill,
-                      size: 90,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Close", style: TextStyle(color: primaryColor)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showPhotoOptions();
-            },
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final scheme = theme.colorScheme;
+
+        final bool isOriginal =
+            theme.extension<AppThemeKey>()?.key == "original";
+
+        final Color primaryColor = isOriginal
+            ? const Color(0xff050c20)
+            : scheme.primary;
+
+        return AlertDialog(
+          backgroundColor: scheme.surface,
+          title: Center(
             child: Text(
-              "Modify",
-              style: TextStyle(
-                color: primaryColor,
-                fontWeight: FontWeight.w600,
-              ),
+              "Profile Picture",
+              style: TextStyle(color: scheme.onSurface),
             ),
           ),
-        ],
-      ),
+          content: SizedBox(
+            width: 260,
+            height: 260,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: hasPhoto
+                  ? Image.file(File(path), fit: BoxFit.cover)
+                  : Container(
+                      color: scheme.surfaceContainerHighest,
+                      child: Icon(
+                        CupertinoIcons.person_fill,
+                        size: 90,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: TextButton.styleFrom(foregroundColor: primaryColor),
+              child: const Text("Close"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _showPhotoOptions();
+              },
+              style: TextButton.styleFrom(foregroundColor: primaryColor),
+              child: const Text(
+                "Modify",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

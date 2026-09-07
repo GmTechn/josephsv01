@@ -534,26 +534,29 @@ class _SchedulePageState extends State<SchedulePage> {
                             avatarColor: brandColor,
 
                             onTap: () async {
-                              final theme = Theme.of(context);
-                              final scheme = theme.colorScheme;
-
-                              final bool isOriginal =
-                                  theme.extension<AppThemeKey>()?.key ==
-                                  "original";
-
-                              final Color primaryColor = isOriginal
-                                  ? const Color(0xff050c20)
-                                  : scheme.primary;
                               final isDone = status == 'done';
 
                               final confirm = await showDialog<bool>(
                                 context: context,
-                                builder: (context) {
+                                builder: (dialogContext) {
+                                  final theme = Theme.of(dialogContext);
+                                  final scheme = theme.colorScheme;
+
+                                  final bool isOriginal =
+                                      theme.extension<AppThemeKey>()?.key ==
+                                      "original";
+
+                                  final Color primaryColor = isOriginal
+                                      ? const Color(0xff050c20)
+                                      : scheme.primary;
+
                                   return AlertDialog(
+                                    backgroundColor: scheme.surface,
                                     title: Text(
                                       isDone
                                           ? 'Mark as To Do?'
                                           : 'Mark as Done?',
+                                      style: TextStyle(color: scheme.onSurface),
                                     ),
                                     content: Text(
                                       t.isRecurring == true
@@ -563,23 +566,26 @@ class _SchedulePageState extends State<SchedulePage> {
                                           : isDone
                                           ? 'Reset this task to To Do?'
                                           : 'Mark this task as done?',
+                                      style: TextStyle(color: scheme.onSurface),
                                     ),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: Text(
-                                          'Cancel',
-                                          style: TextStyle(color: primaryColor),
+                                            Navigator.pop(dialogContext, false),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: primaryColor,
                                         ),
+                                        child: const Text('Cancel'),
                                       ),
                                       TextButton(
                                         onPressed: () =>
-                                            Navigator.pop(context, true),
+                                            Navigator.pop(dialogContext, true),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: primaryColor,
+                                        ),
                                         child: Text(
                                           isDone ? 'To Do' : 'Done',
-                                          style: TextStyle(
-                                            color: primaryColor,
+                                          style: const TextStyle(
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),

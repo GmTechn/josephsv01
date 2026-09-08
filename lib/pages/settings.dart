@@ -259,7 +259,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _tile(
             title: "About the App",
-            subtitle: "Version 1.0.0",
+            subtitle: "Version 1.2.2",
             onTap: _showAboutDialog,
           ),
           _tile(title: "Privacy Policy", onTap: () => _openLink(_privacyUrl)),
